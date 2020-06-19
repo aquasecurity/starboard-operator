@@ -12,10 +12,13 @@ import (
 )
 
 type Operator struct {
+	config etc.Operator
 }
 
-func NewOperator() *Operator {
-	return &Operator{}
+func NewOperator(config etc.Operator) *Operator {
+	return &Operator{
+		config: config,
+	}
 }
 
 func (o *Operator) Run() error {
