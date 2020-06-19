@@ -7,7 +7,23 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
+
+	"github.com/caarlos0/env/v6"
 )
+
+type Config struct {
+	Operator Operator
+}
+
+type Operator struct {
+	StarboardNamespace string `env:"OPERATOR_STARBOARD_NAMESPACE" endDefault:"starboard"`
+}
+
+func GetConfig() (Config, error) {
+	var config Config
+	err := env.Parse(&config)
+	return config, err
+}
 
 func GetKubeConfig() (*rest.Config, error) {
 	cfg, err := rest.InClusterConfig()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/aquasecurity/starboard-security-operator/pkg/etc"
 	"github.com/aquasecurity/starboard-security-operator/pkg/starboard"
 	"k8s.io/klog"
 )
@@ -14,8 +15,12 @@ func main() {
 }
 
 func run() error {
-	operator := starboard.NewOperator()
-	err := operator.Run()
+	config, err := etc.GetConfig()
+	if err != nil {
+		return err
+	}
+	operator := starboard.NewOperator(config.Operator)
+	err = operator.Run()
 	if err != nil {
 		return err
 	}
