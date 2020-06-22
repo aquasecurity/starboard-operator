@@ -1,36 +1,35 @@
 package pod
 
 import (
+	"context"
 	"fmt"
 
-	corev1 "k8s.io/api/core/v1"
-	corev1informer "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/kubernetes"
-	corev1lister "k8s.io/client-go/listers/core/v1"
+	"github.com/aquasecurity/starboard-security-operator/pkg/action"
+	core "k8s.io/api/core/v1"
+	coreinformers "k8s.io/client-go/informers/core/v1"
+	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 )
 
 type Controller struct {
-	kubeClientset kubernetes.Interface
-	podLister     corev1lister.PodLister
-	podsSynced    cache.InformerSynced
+	podLister  corelisters.PodLister
+	podsSynced cache.InformerSynced
+	action     action.Starboard
 }
 
 func NewController(
-	kubeClientset kubernetes.Interface,
-	podInformer corev1informer.PodInformer) (controller *Controller) {
+	podInformer coreinformers.PodInformer,
+	action action.Starboard) (controller *Controller) {
 
 	controller = &Controller{
-		kubeClientset: kubeClientset,
-		podLister:     podInformer.Lister(),
-		podsSynced:    podInformer.Informer().HasSynced,
+		podLister:  podInformer.Lister(),
+		podsSynced: podInformer.Informer().HasSynced,
+		action:     action,
 	}
 
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, new interface{}) {
-			controller.enqueuePod(old, new)
-		},
+		UpdateFunc: controller.podUpdated,
 	})
 
 	return
@@ -43,13 +42,13 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *Controller) enqueuePod(old, new interface{}) {
-	var oldPod *corev1.Pod
-	var newPod *corev1.Pod
-	if pod, ok := old.(*corev1.Pod); ok {
+func (c *Controller) podUpdated(old, new interface{}) {
+	var oldPod *core.Pod
+	var newPod *core.Pod
+	if pod, ok := old.(*core.Pod); ok {
 		oldPod = pod
 	}
-	if pod, ok := new.(*corev1.Pod); ok {
+	if pod, ok := new.(*core.Pod); ok {
 		newPod = pod
 	}
 	if oldPod != nil && newPod != nil {
@@ -57,6 +56,14 @@ func (c *Controller) enqueuePod(old, new interface{}) {
 	}
 }
 
-func (c *Controller) processPod(old, new *corev1.Pod) {
-	klog.Infof("Processing pod: %s/%s", new.Namespace, new.Name)
+func (c *Controller) processPod(old, new *core.Pod) {
+	if !c.action.IsPodScheduled(old, new) {
+		return
+	}
+
+	klog.Infof("Processing scheduled pod: %s/%s", new.Namespace, new.Name)
+	err := c.action.SubmitScanJobByPod(context.Background(), new)
+	if err != nil {
+		klog.Errorf("Error while submitting scan job: %v", err)
+	}
 }
