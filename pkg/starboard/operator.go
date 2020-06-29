@@ -2,6 +2,8 @@ package starboard
 
 import (
 	"fmt"
+	"github.com/aquasecurity/starboard-security-operator/pkg/scanner/vulnerability/aqua"
+	pods "github.com/aquasecurity/starboard/pkg/kube/pod"
 
 	starboard "github.com/aquasecurity/starboard/pkg/generated/clientset/versioned"
 
@@ -42,7 +44,9 @@ func (o *Operator) Run() error {
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClientset, o.config.Operator.DefaultResync)
 
-	starboard := action.NewStarboard(o.config, kubeClientset, starboardClientset)
+	pods := pods.NewPodManager(kubeClientset)
+	scanner := aqua.NewScanner(o.config, pods, aqua.NewConverter(o.config.ScannerAquaCSP))
+	starboard := action.NewStarboard(o.config, kubeClientset, starboardClientset, pods, scanner)
 	podController := pod.NewController(kubeInformerFactory.Core().V1().Pods(), starboard)
 	jobController := job.NewController(kubeInformerFactory.Batch().V1().Jobs(), starboard)
 

@@ -61,7 +61,7 @@ func (c *Controller) processPod(old, new *core.Pod) {
 		return
 	}
 
-	klog.Infof("Processing scheduled pod: %s/%s", new.Namespace, new.Name)
+	klog.Infof("Processing pod %s/%s scheduled to node %s", new.Namespace, new.Name, new.Spec.NodeName)
 	err := c.action.SubmitScanJobByPod(context.Background(), new)
 	if err != nil {
 		klog.Errorf("Error while submitting scan job: %v", err)
