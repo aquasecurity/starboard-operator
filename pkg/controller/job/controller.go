@@ -1,36 +1,36 @@
 package job
 
 import (
+	"context"
 	"fmt"
 
-	batchv1 "k8s.io/api/batch/v1"
-	batchv1informer "k8s.io/client-go/informers/batch/v1"
-	"k8s.io/client-go/kubernetes"
-	batchv1lister "k8s.io/client-go/listers/batch/v1"
+	"github.com/aquasecurity/starboard-security-operator/pkg/action"
+
+	batch "k8s.io/api/batch/v1"
+	batchinformers "k8s.io/client-go/informers/batch/v1"
+	batchlisters "k8s.io/client-go/listers/batch/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 )
 
 type Controller struct {
-	kubeClientset kubernetes.Interface
-	jobLister     batchv1lister.JobLister
-	jobsSynced    cache.InformerSynced
+	jobLister  batchlisters.JobLister
+	jobsSynced cache.InformerSynced
+	action     action.Starboard
 }
 
 func NewController(
-	kubeClientset kubernetes.Interface,
-	jobInformer batchv1informer.JobInformer) (controller *Controller) {
+	jobInformer batchinformers.JobInformer,
+	action action.Starboard) (controller *Controller) {
 
 	controller = &Controller{
-		kubeClientset: kubeClientset,
-		jobLister:     jobInformer.Lister(),
-		jobsSynced:    jobInformer.Informer().HasSynced,
+		jobLister:  jobInformer.Lister(),
+		jobsSynced: jobInformer.Informer().HasSynced,
+		action:     action,
 	}
 
 	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, new interface{}) {
-			controller.enqueueJob(new)
-		},
+		UpdateFunc: controller.jobUpdated,
 	})
 
 	return
@@ -43,12 +43,20 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (c *Controller) enqueueJob(new interface{}) {
-	if pod, ok := new.(*batchv1.Job); ok {
-		c.processJob(pod)
+func (c *Controller) jobUpdated(_, new interface{}) {
+	if pod, ok := new.(*batch.Job); ok {
+		c.processJob(nil, pod)
 	}
 }
 
-func (c *Controller) processJob(new *batchv1.Job) {
+func (c *Controller) processJob(old, new *batch.Job) {
+	if !c.action.IsScanJobProcessable(old, new) {
+		return
+	}
+
 	klog.Infof("Processing job: %s/%s", new.Namespace, new.Name)
+	err := c.action.ProcessCompleteScanJob(context.Background(), new)
+	if err != nil {
+		klog.Errorf("Error while processing job: %v", err)
+	}
 }

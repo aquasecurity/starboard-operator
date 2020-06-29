@@ -2,7 +2,10 @@ package starboard
 
 import (
 	"fmt"
-	"time"
+
+	starboard "github.com/aquasecurity/starboard/pkg/generated/clientset/versioned"
+
+	"github.com/aquasecurity/starboard-security-operator/pkg/action"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/controller/job"
 	"github.com/aquasecurity/starboard-security-operator/pkg/controller/pod"
@@ -12,10 +15,10 @@ import (
 )
 
 type Operator struct {
-	config etc.Operator
+	config etc.Config
 }
 
-func NewOperator(config etc.Operator) *Operator {
+func NewOperator(config etc.Config) *Operator {
 	return &Operator{
 		config: config,
 	}
@@ -23,16 +26,25 @@ func NewOperator(config etc.Operator) *Operator {
 
 func (o *Operator) Run() error {
 	cfg, err := etc.GetKubeConfig()
+	if err != nil {
+		return fmt.Errorf("getting kubernetes config: %w", err)
+	}
 
 	kubeClientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		return fmt.Errorf("builiding kubernetes clientset: %w", err)
+		return fmt.Errorf("constructing kubernetes clientset: %w", err)
 	}
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClientset, time.Minute*10)
+	starboardClientset, err := starboard.NewForConfig(cfg)
+	if err != nil {
+		return fmt.Errorf("constructing starboard clientset: %w", err)
+	}
 
-	podController := pod.NewController(kubeClientset, kubeInformerFactory.Core().V1().Pods())
-	jobController := job.NewController(kubeClientset, kubeInformerFactory.Batch().V1().Jobs())
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(kubeClientset, o.config.Operator.DefaultResync)
+
+	starboard := action.NewStarboard(o.config, kubeClientset, starboardClientset)
+	podController := pod.NewController(kubeInformerFactory.Core().V1().Pods(), starboard)
+	jobController := job.NewController(kubeInformerFactory.Batch().V1().Jobs(), starboard)
 
 	stopCh := make(chan struct{})
 	kubeInformerFactory.Start(stopCh)

@@ -19,7 +19,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	operator := starboard.NewOperator(config.Operator)
+	operator := starboard.NewOperator(config)
 	err = operator.Run()
 	if err != nil {
 		return err
