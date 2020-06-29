@@ -44,19 +44,33 @@ func (c *Controller) Run(stopCh <-chan struct{}) error {
 }
 
 func (c *Controller) jobUpdated(_, new interface{}) {
-	if pod, ok := new.(*batch.Job); ok {
-		c.processJob(nil, pod)
+	if job, ok := new.(*batch.Job); ok {
+		c.processJob(job)
 	}
 }
 
-func (c *Controller) processJob(old, new *batch.Job) {
-	if !c.action.IsScanJobProcessable(old, new) {
+func (c *Controller) processJob(job *batch.Job) {
+	var finished bool
+	var jobCondition batch.JobConditionType
+
+	if finished, jobCondition = c.action.IsScanJobFinished(context.Background(), job); !finished {
 		return
 	}
 
-	klog.Infof("Processing job: %s/%s", new.Namespace, new.Name)
-	err := c.action.ProcessCompleteScanJob(context.Background(), new)
-	if err != nil {
-		klog.Errorf("Error while processing job: %v", err)
+	switch jobCondition {
+	case batch.JobComplete:
+		klog.Infof("Processing complete scan job: %s/%s", job.Namespace, job.Name)
+		err := c.action.ProcessCompleteScanJob(context.Background(), job)
+		if err != nil {
+			klog.Errorf("Error while processing complete scan job: %v", err)
+		}
+	case batch.JobFailed:
+		klog.Infof("Processing failed scan job: %s/%s", job.Namespace, job.Name)
+		err := c.action.ProcessFailedScanJob(context.Background(), job)
+		if err != nil {
+			klog.Errorf("Error while processing failed scan job: %v", err)
+		}
+	default:
+		klog.Warningf("Unrecognized scan job condition: %v", jobCondition)
 	}
 }
