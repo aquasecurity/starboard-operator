@@ -4,8 +4,6 @@ kind: ServiceAccount
 metadata:
   name: starboard-security-operator
   namespace: starboard
-imagePullSecrets:
-  - name: starboard-registry-credentials
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -75,14 +73,6 @@ spec:
         runAsNonRoot: true
         runAsUser: 10000
         fsGroup: 10000
-      initContainers:
-        - name: scannercli
-          image: aquasec.azurecr.io/scanner:4.6
-          imagePullPolicy: IfNotPresent
-          args: ["version"]
-          securityContext:
-            privileged: false
-            readOnlyRootFilesystem: true
       containers:
         - name: operator
           image: aquasec/starboard-security-operator:dev
@@ -91,7 +81,19 @@ spec:
             privileged: false
             readOnlyRootFilesystem: true
           env:
+            - name: OPERATOR_SCANNER_TRIVY_ENABLED
+              value: "true"
+            - name: OPERATOR_SCANNER_TRIVY_VERSION
+              value: "0.9.1"
+            - name: OPERATOR_SCANNER_AQUA_CSP_ENABLED
+              value: "false"
             - name: OPERATOR_SCANNER_AQUA_CSP_VERSION
-              value: "4.6"
+              valueFrom:
+                secretKeyRef:
+                  name: aqua-csp-vulnerability-scanner
+                  key: OPERATOR_SCANNER_AQUA_CSP_VERSION
             - name: OPERATOR_SCANNER_AQUA_REGISTRY_SERVER
-              value: aquasec.azurecr.io
+              valueFrom:
+                secretKeyRef:
+                  name: aqua-csp-vulnerability-scanner
+                  key: OPERATOR_SCANNER_AQUA_CSP_REGISTRY_SERVER

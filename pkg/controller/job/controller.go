@@ -59,13 +59,11 @@ func (c *Controller) processJob(job *batch.Job) {
 
 	switch jobCondition {
 	case batch.JobComplete:
-		klog.Infof("Processing complete scan job: %s/%s", job.Namespace, job.Name)
 		err := c.action.ProcessCompleteScanJob(context.Background(), job)
 		if err != nil {
 			klog.Errorf("Error while processing complete scan job: %v", err)
 		}
 	case batch.JobFailed:
-		klog.Infof("Processing failed scan job: %s/%s", job.Namespace, job.Name)
 		err := c.action.ProcessFailedScanJob(context.Background(), job)
 		if err != nil {
 			klog.Errorf("Error while processing failed scan job: %v", err)

@@ -24,10 +24,12 @@ type Operator struct {
 }
 
 type ScannerTrivy struct {
+	Enabled bool   `env:"OPERATOR_SCANNER_TRIVY_ENABLED" envDefault:"true"`
 	Version string `env:"OPERATOR_SCANNER_TRIVY_VERSION" envDefault:"0.9.1"`
 }
 
 type ScannerAquaCSP struct {
+	Enabled        bool   `env:"OPERATOR_SCANNER_AQUA_CSP_ENABLED" envDefault:"false"`
 	Version        string `env:"OPERATOR_SCANNER_AQUA_CSP_VERSION" envDefault:"4.6"`
 	RegistryServer string `env:"OPERATOR_SCANNER_AQUA_REGISTRY_SERVER" envDefault:"aquasec.azurecr.io"`
 }
