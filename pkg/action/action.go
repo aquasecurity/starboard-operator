@@ -3,7 +3,6 @@ package action
 import (
 	"context"
 	"fmt"
-
 	"k8s.io/klog"
 
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities/crd"
@@ -29,10 +28,14 @@ import (
 // code required by such frameworks without modifying the business logic.
 type Starboard interface {
 	IsPodScheduled(old, new *core.Pod) bool
-	SubmitScanJobByPod(ctx context.Context, spec *core.Pod) error
+	SubmitScanJobByPod(ctx context.Context, workload kube.Object, spec *core.Pod) error
+
 	IsScanJobFinished(ctx context.Context, job *batch.Job) (bool, batch.JobConditionType)
 	ProcessCompleteScanJob(ctx context.Context, scanJob *batch.Job) error
 	ProcessFailedScanJob(ctx context.Context, scanJob *batch.Job) error
+
+	GetImmediateOwnerReference(pod *core.Pod) kube.Object
+	HasDesiredState(ctx context.Context, workload kube.Object, pod *core.Pod) (bool, error)
 }
 
 // NewStarboard construct a new Starboard action with the specified configuration
@@ -55,8 +58,18 @@ type action struct {
 	config        etc.Config
 	kubeClientset kubernetes.Interface
 	pods          *pod.Manager
-	writer        vulnerabilities.Writer
+	writer        vulnerabilities.ReadWriter
 	scanner       vulnerabilities.ScannerAsync
+}
+
+func (a *action) HasDesiredState(ctx context.Context, workload kube.Object, pod *core.Pod) (bool, error) {
+	reports, err := a.writer.Read(ctx, workload)
+	klog.Infof("Reading report for workload: %v: %v", workload, reports)
+	if err != nil {
+		return false, err
+	}
+	// TODO Check container names
+	return len(pod.Spec.Containers) == len(reports), nil
 }
 
 func (a *action) IsPodScheduled(old, new *core.Pod) bool {
@@ -88,9 +101,8 @@ func (a *action) IsScanJobFinished(_ context.Context, job *batch.Job) (bool, bat
 	return true, job.Status.Conditions[0].Type
 }
 
-func (a *action) SubmitScanJobByPod(ctx context.Context, pod *core.Pod) error {
+func (a *action) SubmitScanJobByPod(ctx context.Context, workload kube.Object, pod *core.Pod) error {
 	klog.Infof("Started processing pod %s/%s scheduled to node %s", pod.Namespace, pod.Name, pod.Spec.NodeName)
-	workload := a.GetImmediateOwnerReference(pod)
 	job, err := a.scanner.PrepareScanJob(ctx, workload, pod.Spec)
 	if err != nil {
 		return fmt.Errorf("preparing scan job: %w", err)

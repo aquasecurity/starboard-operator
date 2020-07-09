@@ -61,7 +61,20 @@ func (c *Controller) processPod(old, new *core.Pod) {
 		return
 	}
 
-	err := c.action.SubmitScanJobByPod(context.Background(), new)
+	workload := c.action.GetImmediateOwnerReference(new)
+
+	hasDesiredState, err := c.action.HasDesiredState(context.Background(), workload, new)
+	if err != nil {
+		klog.Errorf("Error while checking desired state: %v", err)
+		return
+	}
+
+	if hasDesiredState {
+		klog.Errorf("Skip processing; it has desired state")
+		return
+	}
+
+	err = c.action.SubmitScanJobByPod(context.Background(), workload, new)
 	if err != nil {
 		klog.Errorf("Error while submitting scan job: %v", err)
 	}
