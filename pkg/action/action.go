@@ -64,7 +64,7 @@ type action struct {
 
 func (a *action) HasDesiredState(ctx context.Context, workload kube.Object, pod *core.Pod) (bool, error) {
 	reports, err := a.writer.Read(ctx, workload)
-	klog.Infof("Reading report for workload: %v: %v", workload, reports)
+	klog.Infof("Reading vulnerabilities report for workload: %v: %v", workload, reports)
 	if err != nil {
 		return false, err
 	}

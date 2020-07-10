@@ -2,10 +2,13 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 )
+
+var ErrNotFound = errors.New("not found")
 
 type client struct {
 	baseURL    string
@@ -95,6 +98,9 @@ func (i *Images) Vulnerabilities(registry, repo, tag string) (VulnerabilitiesRes
 	resp, err := i.client.httpClient.Do(req)
 	if err != nil {
 		return VulnerabilitiesResponse{}, err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return VulnerabilitiesResponse{}, ErrNotFound
 	}
 	if resp.StatusCode != http.StatusOK {
 		return VulnerabilitiesResponse{}, fmt.Errorf("unexpected response status: %s", resp.Status)
