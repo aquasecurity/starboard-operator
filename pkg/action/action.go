@@ -46,7 +46,7 @@ func NewStarboard(config etc.Config,
 		config:        config,
 		kubeClientset: kubeClientset,
 		pods:          pods,
-		writer:        crd.NewWriter(starboardClientset),
+		writer:        crd.NewReadWriter(starboardClientset),
 		scanner:       scanner,
 	}
 }
