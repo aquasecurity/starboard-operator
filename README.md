@@ -1,6 +1,7 @@
 # starboard-security-operator
 
-![build](https://github.com/aquasecurity/starboard-security-operator/workflows/build/badge.svg)
+[![GitHub Build Actions][build-action-img]][actions]
+[![Coverage Status][cov-img]][cov]
 
 ## Getting Started
 
@@ -49,3 +50,8 @@
 | `OPERATOR_SCANNER_AQUA_CSP_ENABLED`     | `false`              | The flag to enable Aqua CSP vulnerability scanner |
 | `OPERATOR_SCANNER_AQUA_CSP_VERSION`     | `4.6`                | The version of Aqua CSP scannercli container image to be used |
 | `OPERATOR_SCANNER_AQUA_REGISTRY_SERVER` | `aquasec.azurecr.io` | The name of Aqua registry server to pull the scannercli container image from |
+
+[build-action-img]: https://github.com/aquasecurity/starboard-security-operator/workflows/build/badge.svg
+[actions]: https://github.com/aquasecurity/starboard-security-operator/actions
+[cov-img]: https://codecov.io/github/aquasecurity/starboard-security-operator/branch/master/graph/badge.svg
+[cov]: https://codecov.io/github/aquasecurity/starboard-security-operator

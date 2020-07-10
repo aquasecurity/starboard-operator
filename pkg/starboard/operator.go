@@ -90,7 +90,7 @@ func (o *Operator) getEnabledVulnerabilityScanner(kubeClientset kubernetes.Inter
 	}
 	if o.config.ScannerAquaCSP.Enabled {
 		klog.Infof("Using Aqua CSP %s as vulnerability scanner", o.config.ScannerAquaCSP.Version)
-		return aqua.NewScanner(o.config, pods, aqua.NewConverter(o.config.ScannerAquaCSP)), nil
+		return aqua.NewScanner(o.config, &aqua.RandomNamesGenerator{}, pods, aqua.NewConverter(o.config.ScannerAquaCSP)), nil
 	}
 	return nil, errors.New("invalid configuration: unhandled vulnerability scanners config")
 }
