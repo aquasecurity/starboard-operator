@@ -3,10 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/aquasecurity/starboard-security-operator/pkg/aqua/scanner"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/controllers"
 	"github.com/aquasecurity/starboard-security-operator/pkg/etc"
-	"github.com/aquasecurity/starboard-security-operator/pkg/scanner/vulnerability/aqua"
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities"
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities/crd"
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities/trivy"
@@ -119,7 +119,7 @@ func getEnabledScanner(config etc.Config, kubeClientset kubernetes.Interface, po
 	}
 	if config.ScannerAquaCSP.Enabled {
 		setupLog.Info("Using Aqua CSP as vulnerability scanner", "version", config.ScannerAquaCSP.Version)
-		return aqua.NewScanner(config, &aqua.RandomNamesGenerator{}, pods, aqua.NewConverter(config.ScannerAquaCSP)), nil
+		return scanner.NewScanner(config, &scanner.RandomNamesGenerator{}, pods, scanner.NewConverter(config.ScannerAquaCSP)), nil
 	}
 	return nil, errors.New("invalid configuration: unhandled vulnerability scanners config")
 }

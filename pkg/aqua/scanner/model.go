@@ -1,4 +1,4 @@
-package aqua
+package scanner
 
 type ResourceType int
 
