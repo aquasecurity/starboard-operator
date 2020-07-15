@@ -44,6 +44,7 @@
 | Name                                    | Default              | Description |
 |-----------------------------------------|----------------------|-------------|
 | `OPERATOR_STARBOARD_NAMESPACE`          | `starboard`          | The default namespace for Starboard |
+| `OPERATOR_NAMESPACE`                    | ``                   | The namespace watched by the operator |
 | `OPERATOR_STARBOARD_DEFAULT_RESYNC`     | `10m`                | The default resync period for shared informers used by the operator |
 | `OPERATOR_SCANNER_TRIVY_ENABLED`        | `true`               | The flag to enable Trivy vulnerability scanner |
 | `OPERATOR_SCANNER_TRIVY_VERSION`        | `0.9.1`              | The version of Trivy to be used |
