@@ -4,14 +4,14 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
+
 	"github.com/aquasecurity/starboard-security-operator/pkg/aqua/scanner"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/controllers"
 	"github.com/aquasecurity/starboard-security-operator/pkg/etc"
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities"
-	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities/crd"
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities/trivy"
-	starboard "github.com/aquasecurity/starboard/pkg/generated/clientset/versioned"
 	"github.com/aquasecurity/starboard/pkg/kube"
 	pods "github.com/aquasecurity/starboard/pkg/kube/pod"
 	"k8s.io/client-go/kubernetes"
@@ -59,11 +59,6 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	// TODO Do not use this client unless absolutely necessary. We should rely on the client constructed by the ctrl.NewManager()
-	starboardClientset, err := starboard.NewForConfig(kubernetesConfig)
-	if err != nil {
-		return err
-	}
 	pods := pods.NewPodManager(kubernetesClientset)
 
 	scanner, err := getEnabledScanner(config, kubernetesClientset, pods)
@@ -79,10 +74,13 @@ func run() error {
 		return fmt.Errorf("unable to start manager: %w", err)
 	}
 
+	reportsStore := reports.NewStore(mgr.GetClient())
+
 	if err = (&controllers.PodReconciler{
 		StarboardNamespace: config.Operator.StarboardNamespace,
 		Namespace:          config.Operator.Namespace,
 		Client:             mgr.GetClient(),
+		Store:              reportsStore,
 		Scanner:            scanner,
 		Log:                ctrl.Log.WithName("controllers").WithName("pod"),
 		Scheme:             mgr.GetScheme(),
@@ -93,9 +91,9 @@ func run() error {
 	if err = (&controllers.JobReconciler{
 		StarboardNamespace: config.Operator.StarboardNamespace,
 		Client:             mgr.GetClient(),
+		Store:              reportsStore,
 		Scanner:            scanner,
 		Pods:               pods,
-		Writer:             crd.NewReadWriter(starboardClientset),
 		Log:                ctrl.Log.WithName("controllers").WithName("job"),
 		Scheme:             mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
