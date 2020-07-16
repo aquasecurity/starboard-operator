@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+
 	"github.com/aquasecurity/starboard-security-operator/pkg/aqua/scanner"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/controllers"
@@ -53,10 +54,12 @@ func run() error {
 	}
 
 	kubernetesConfig := ctrl.GetConfigOrDie()
+	// TODO Do not use this client unless absolutely necessary. We should rely on the client constructed by the ctrl.NewManager()
 	kubernetesClientset, err := kubernetes.NewForConfig(kubernetesConfig)
 	if err != nil {
 		return err
 	}
+	// TODO Do not use this client unless absolutely necessary. We should rely on the client constructed by the ctrl.NewManager()
 	starboardClientset, err := starboard.NewForConfig(kubernetesConfig)
 	if err != nil {
 		return err
@@ -77,11 +80,12 @@ func run() error {
 	}
 
 	if err = (&controllers.PodReconciler{
-		Namespace: config.Operator.Namespace,
-		Client:    mgr.GetClient(),
-		Scanner:   scanner,
-		Log:       ctrl.Log.WithName("controllers").WithName("pod"),
-		Scheme:    mgr.GetScheme(),
+		StarboardNamespace: config.Operator.StarboardNamespace,
+		Namespace:          config.Operator.Namespace,
+		Client:             mgr.GetClient(),
+		Scanner:            scanner,
+		Log:                ctrl.Log.WithName("controllers").WithName("pod"),
+		Scheme:             mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create pod controller: %w", err)
 	}
