@@ -3,7 +3,9 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 
+	starboard "github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities"
 	"github.com/aquasecurity/starboard/pkg/kube"
 	pods "github.com/aquasecurity/starboard/pkg/kube/pod"
@@ -28,14 +30,14 @@ type JobReconciler struct {
 }
 
 func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	_ = context.Background()
-	_ = r.Log.WithValues("job", req.NamespacedName)
+	ctx := context.Background()
+	log := r.Log.WithValues("job", req.NamespacedName)
 	if req.Namespace != r.StarboardNamespace {
 		return ctrl.Result{}, nil
 	}
 
 	j := &batchv1.Job{}
-	err := r.Client.Get(context.Background(), req.NamespacedName, j)
+	err := r.Client.Get(ctx, req.NamespacedName, j)
 	if err != nil && errors.IsNotFound(err) {
 		return ctrl.Result{}, nil
 	} else if err != nil {
@@ -48,17 +50,17 @@ func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	switch jobCondition := j.Status.Conditions[0].Type; jobCondition {
 	case batchv1.JobComplete:
-		err := r.processCompleteScanJob(context.Background(), j)
+		err := r.processCompleteScanJob(ctx, j)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	case batchv1.JobFailed:
-		err := r.processFailedScanJob(context.Background(), j)
+		err := r.processFailedScanJob(ctx, j)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	default:
-		r.Log.Info("Unrecognized scan job condition: %v", "condition", jobCondition)
+		log.Info("Unrecognized scan job condition", "condition", jobCondition)
 		return ctrl.Result{}, nil
 	}
 
@@ -70,6 +72,14 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 	workload, err := kube.ObjectFromLabelsSet(scanJob.Labels)
 	if err != nil {
 		return fmt.Errorf("getting workload from scan job labels set: %w", err)
+	}
+
+	hasVulnerabilityReports, err := r.hasVulnerabilityReports(ctx, workload, scanJob)
+	if err != nil {
+		return err
+	}
+	if hasVulnerabilityReports {
+		return r.Client.Delete(ctx, scanJob)
 	}
 
 	r.Log.Info("Getting vulnerability reports by scan job")
@@ -86,6 +96,54 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 	r.Log.Info("Finished processing complete scan job")
 	r.Log.Info("Deleting complete scan job")
 	return r.Client.Delete(ctx, scanJob)
+}
+
+// Check if we have scan reports for the specified pod
+func (r *JobReconciler) hasVulnerabilityReports(ctx context.Context, owner kube.Object, job *batchv1.Job) (bool, error) {
+	vulnerabilityList := &starboard.VulnerabilityList{}
+	err := r.Client.List(ctx, vulnerabilityList, client.MatchingLabels{
+		kube.LabelResourceNamespace: owner.Namespace,
+		kube.LabelResourceKind:      string(owner.Kind),
+		kube.LabelResourceName:      owner.Name,
+	}, client.InNamespace(owner.Namespace))
+	if err != nil {
+		return false, err
+	}
+
+	containerImages, err := r.getContainerImagesFrom(job)
+	if err != nil {
+		return false, err
+	}
+
+	actual := map[string]bool{}
+	for _, items := range vulnerabilityList.Items {
+		if containerName, ok := items.Labels[kube.LabelContainerName]; ok {
+			actual[containerName] = true
+		}
+	}
+
+	expected := map[string]bool{}
+	for containerName, _ := range containerImages {
+		expected[containerName] = true
+	}
+
+	return reflect.DeepEqual(actual, expected), nil
+}
+
+// TODO We have similar code in other places
+func (r *JobReconciler) getContainerImagesFrom(job *batchv1.Job) (kube.ContainerImages, error) {
+	var containerImagesAsJSON string
+	var ok bool
+
+	if containerImagesAsJSON, ok = job.Annotations[kube.AnnotationContainerImages]; !ok {
+		return nil, fmt.Errorf("scan job does not have required annotation: %s", kube.AnnotationContainerImages)
+	}
+	containerImages := kube.ContainerImages{}
+	err := containerImages.FromJSON(containerImagesAsJSON)
+	if err != nil {
+		return nil, fmt.Errorf("reading scan job annotation: %s: %w", kube.AnnotationContainerImages, err)
+	}
+	return containerImages, nil
 }
 
 func (r *JobReconciler) processFailedScanJob(ctx context.Context, scanJob *batchv1.Job) error {
