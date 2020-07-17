@@ -4,10 +4,11 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
+
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities"
 	batchv1 "k8s.io/api/batch/v1"
 
-	starboard "github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/aquasecurity/starboard/pkg/kube"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -22,6 +23,7 @@ type PodReconciler struct {
 	StarboardNamespace string
 	Namespace          string
 	client.Client
+	Store   reports.StoreInterface
 	Scanner vulnerabilities.ScannerAsync
 	Log     logr.Logger
 	Scheme  *runtime.Scheme
@@ -97,21 +99,14 @@ func (r *PodReconciler) hasContainersReadyCondition(pod *corev1.Pod) bool {
 
 // hasVulnerabilityReports checks if the vulnerability reports exist for the specified workload.
 func (r *PodReconciler) hasVulnerabilityReports(ctx context.Context, owner kube.Object, p *corev1.Pod) (bool, error) {
-	vulnerabilityList := &starboard.VulnerabilityList{}
-	err := r.Client.List(ctx, vulnerabilityList, client.MatchingLabels{
-		kube.LabelResourceNamespace: p.Namespace,
-		kube.LabelResourceKind:      string(owner.Kind),
-		kube.LabelResourceName:      owner.Name,
-	}, client.InNamespace(p.Namespace))
+	vulnerabilityReports, err := r.Store.Read(ctx, owner)
 	if err != nil {
 		return false, err
 	}
 
 	actual := map[string]bool{}
-	for _, items := range vulnerabilityList.Items {
-		if containerName, ok := items.Labels[kube.LabelContainerName]; ok {
-			actual[containerName] = true
-		}
+	for containerName, _ := range vulnerabilityReports {
+		actual[containerName] = true
 	}
 
 	expected := map[string]bool{}

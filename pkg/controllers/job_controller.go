@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	starboard "github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
+	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
+
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities"
 	"github.com/aquasecurity/starboard/pkg/kube"
 	pods "github.com/aquasecurity/starboard/pkg/kube/pod"
@@ -26,7 +27,7 @@ type JobReconciler struct {
 	Scheme  *runtime.Scheme
 	Pods    *pods.Manager
 	Scanner vulnerabilities.ScannerAsync
-	Writer  vulnerabilities.Writer
+	Store   reports.StoreInterface
 }
 
 func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
@@ -68,7 +69,8 @@ func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *batchv1.Job) error {
-	r.Log.Info("Started processing complete scan job")
+	log := r.Log.WithValues("job.name", scanJob.Name, "job.namespace", scanJob.Namespace)
+	log.Info("Started processing complete scan job")
 	workload, err := kube.ObjectFromLabelsSet(scanJob.Labels)
 	if err != nil {
 		return fmt.Errorf("getting workload from scan job labels set: %w", err)
@@ -82,30 +84,25 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 		return r.Client.Delete(ctx, scanJob)
 	}
 
-	r.Log.Info("Getting vulnerability reports by scan job")
+	log.Info("Getting vulnerability reports by scan job")
 	vulnerabilityReports, err := r.Scanner.GetVulnerabilityReportsByScanJob(ctx, scanJob)
 	if err != nil {
 		return err
 	}
 
-	r.Log.Info("Writing vulnerability reports", "workload", workload)
-	err = r.Writer.Write(ctx, workload, vulnerabilityReports)
+	log.Info("Writing vulnerability reports", "workload", workload)
+	err = r.Store.Write(ctx, workload, vulnerabilityReports)
 	if err != nil {
 		return fmt.Errorf("writing vulnerability reports: %v", err)
 	}
-	r.Log.Info("Finished processing complete scan job")
-	r.Log.Info("Deleting complete scan job")
+	log.Info("Finished processing complete scan job")
+	log.Info("Deleting complete scan job")
 	return r.Client.Delete(ctx, scanJob)
 }
 
 // Check if we have scan reports for the specified pod
 func (r *JobReconciler) hasVulnerabilityReports(ctx context.Context, owner kube.Object, job *batchv1.Job) (bool, error) {
-	vulnerabilityList := &starboard.VulnerabilityList{}
-	err := r.Client.List(ctx, vulnerabilityList, client.MatchingLabels{
-		kube.LabelResourceNamespace: owner.Namespace,
-		kube.LabelResourceKind:      string(owner.Kind),
-		kube.LabelResourceName:      owner.Name,
-	}, client.InNamespace(owner.Namespace))
+	vulnerabilityReports, err := r.Store.Read(ctx, owner)
 	if err != nil {
 		return false, err
 	}
@@ -116,10 +113,8 @@ func (r *JobReconciler) hasVulnerabilityReports(ctx context.Context, owner kube.
 	}
 
 	actual := map[string]bool{}
-	for _, items := range vulnerabilityList.Items {
-		if containerName, ok := items.Labels[kube.LabelContainerName]; ok {
-			actual[containerName] = true
-		}
+	for containerName, _ := range vulnerabilityReports {
+		actual[containerName] = true
 	}
 
 	expected := map[string]bool{}
