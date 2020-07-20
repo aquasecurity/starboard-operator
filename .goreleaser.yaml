@@ -1,0 +1,47 @@
+env:
+  - GO111MODULE=on
+  - CGO_ENABLED=0
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - id: operator
+    main: ./cmd/operator/main.go
+    binary: operator
+    goos:
+      - linux
+    goarch:
+      - amd64
+  - id: scanner
+    main: ./cmd/scanner/main.go
+    binary: scanner
+    goos:
+      - linux
+    goarch:
+      - amd64
+archives:
+  - replacements:
+      linux: Linux
+      amd64: x86_64
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  name_template: "{{ .FullCommit }}"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs'
+      - '^test'
+      - '^release'
+dockers:
+  - dockerfile: Dockerfile.operator
+    image_templates:
+      - "docker.io/aquasec/starboard-security-operator:{{ .Version }}"
+    binaries:
+      - operator
+  - dockerfile: Dockerfile.scanner
+    image_templates:
+      - "docker.io/aquasec/starboard-scanner-aqua:{{ .Version }}"
+    binaries:
+      - scanner

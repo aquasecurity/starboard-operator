@@ -1,5 +1,6 @@
 # starboard-security-operator
 
+[![GitHub Release][release-img]][release]
 [![GitHub Build Actions][build-action-img]][actions]
 [![Coverage Status][cov-img]][cov]
 
@@ -23,11 +24,11 @@
    ```
 3. Create a Service Account used to run Aqua CSP scan Jobs:
    ```
-   $ kubectl apply -f kube/starboard-scanner-aqua.yaml
+   $ kubectl apply -f deploy/starboard-scanner-aqua.yaml
    ```
 4. Create a Deployment for the Starboard Security Operator:
    ```
-   $ kubectl apply -f kube/starboard-security-operator.yaml
+   $ kubectl apply -f deploy/starboard-security-operator.yaml
    ```
 
 ## Configuration
@@ -41,6 +42,8 @@
 | `OPERATOR_SCANNER_AQUA_CSP_ENABLED`     | `false`              | The flag to enable Aqua CSP vulnerability scanner |
 | `OPERATOR_SCANNER_AQUA_CSP_VERSION`     | `4.6`                | The version of Aqua CSP scannercli container image to be used |
 
+[release-img]: https://img.shields.io/github/release/aquasecurity/starboard-security-operator.svg?logo=github
+[release]: https://github.com/aquasecurity/starboard-security-operator/releases
 [build-action-img]: https://github.com/aquasecurity/starboard-security-operator/workflows/build/badge.svg
 [actions]: https://github.com/aquasecurity/starboard-security-operator/actions
 [cov-img]: https://codecov.io/github/aquasecurity/starboard-security-operator/branch/master/graph/badge.svg
