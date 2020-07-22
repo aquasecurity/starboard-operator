@@ -14,27 +14,18 @@
    ```
 2. Create a Secret that holds configuration of the Aqua CSP scanner:
    ```
-   $ kubectl create secret generic aqua-csp-vulnerability-scanner \
+   $ kubectl create secret generic starboard-scanner-aqua \
      --namespace starboard \
      --from-literal OPERATOR_SCANNER_AQUA_CSP_USER=$AQUA_CONSOLE_USERNAME \
      --from-literal OPERATOR_SCANNER_AQUA_CSP_PASSWORD=$AQUA_CONSOLE_PASSWORD \
      --from-literal OPERATOR_SCANNER_AQUA_CSP_VERSION=$AQUA_VERSION \
-     --from-literal OPERATOR_SCANNER_AQUA_CSP_HOST=http://csp-console-svc.aqua:8080 \
-     --from-literal OPERATOR_SCANNER_AQUA_CSP_REGISTRY_SERVER=$AQUA_REGISTRY_SERVER
+     --from-literal OPERATOR_SCANNER_AQUA_CSP_HOST=http://csp-console-svc.aqua:8080
    ```
-3. Create a Docker pull Secret to pull `scannercli` container image from the Aqua registry:
+3. Create a Service Account used to run Aqua CSP scan Jobs:
    ```
-   $ kubectl create secret docker-registry aqua-csp-registry-credentials \
-     --namespace starboard \
-     --docker-server=$AQUA_REGISTRY_SERVER \
-     --docker-username=$AQUA_REGISTRY_USERNAME \
-     --docker-password=$AQUA_REGISTRY_PASSWORD
+   $ kubectl apply -f kube/starboard-scanner-aqua.yaml
    ```
-4. Create a Service Account used to run Aqua CSP scan Jobs:
-   ```
-   $ kubectl apply -f kube/aqua-csp-vulnerability-scanner.yaml
-   ```
-5. Create a Deployment for the Starboard Security Operator:
+4. Create a Deployment for the Starboard Security Operator:
    ```
    $ kubectl apply -f kube/starboard-security-operator.yaml
    ```
@@ -49,7 +40,6 @@
 | `OPERATOR_SCANNER_TRIVY_VERSION`        | `0.9.1`              | The version of Trivy to be used |
 | `OPERATOR_SCANNER_AQUA_CSP_ENABLED`     | `false`              | The flag to enable Aqua CSP vulnerability scanner |
 | `OPERATOR_SCANNER_AQUA_CSP_VERSION`     | `4.6`                | The version of Aqua CSP scannercli container image to be used |
-| `OPERATOR_SCANNER_AQUA_REGISTRY_SERVER` | `aquasec.azurecr.io` | The name of Aqua registry server to pull the scannercli container image from |
 
 [build-action-img]: https://github.com/aquasecurity/starboard-security-operator/workflows/build/badge.svg
 [actions]: https://github.com/aquasecurity/starboard-security-operator/actions

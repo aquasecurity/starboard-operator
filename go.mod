@@ -8,6 +8,7 @@ require (
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-containerregistry v0.1.1
 	github.com/google/uuid v1.1.1
+	github.com/spf13/cobra v1.0.0
 	github.com/stretchr/testify v1.5.1
 	k8s.io/api v0.19.0-alpha.3
 	k8s.io/apimachinery v0.19.0-alpha.3

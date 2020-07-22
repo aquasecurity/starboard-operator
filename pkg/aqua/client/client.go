@@ -8,13 +8,17 @@ import (
 	"time"
 )
 
+const (
+	defaultTimeout = 30 * time.Second
+	userAgent      = "StarboardSecurityOperator"
+)
+
 var ErrNotFound = errors.New("not found")
 
 type client struct {
-	baseURL    string
-	username   string
-	password   string
-	httpClient *http.Client
+	baseURL       string
+	authorization Authorization
+	httpClient    *http.Client
 }
 
 func (c *client) newGetRequest(url string) (*http.Request, error) {
@@ -23,7 +27,10 @@ func (c *client) newGetRequest(url string) (*http.Request, error) {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json; charset=UTF-8")
-	req.SetBasicAuth(c.username, c.password)
+	req.Header.Add("User-Agent", userAgent)
+	if auth := c.authorization.Basic; auth != nil {
+		req.SetBasicAuth(auth.Username, auth.Password)
+	}
 	return req, nil
 }
 
@@ -45,24 +52,14 @@ type Client struct {
 	images     *Images
 }
 
-type Authorization struct {
-	Basic *UsernameAndPassword
-}
-
-type UsernameAndPassword struct {
-	Username string
-	Password string
-}
-
 func NewClient(baseURL string, authorization Authorization) *Client {
 	httpClient := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: defaultTimeout,
 	}
 	client := &client{
-		baseURL:    baseURL,
-		username:   authorization.Basic.Username,
-		password:   authorization.Basic.Password,
-		httpClient: httpClient,
+		baseURL:       baseURL,
+		authorization: authorization,
+		httpClient:    httpClient,
 	}
 
 	return &Client{
@@ -139,37 +136,4 @@ func (r *Registries) List() ([]RegistryResponse, error) {
 	}
 
 	return listRegistriesResponse, nil
-}
-
-type VulnerabilitiesResponse struct {
-	Count   int                             `json:"count"`
-	Results []VulnerabilitiesResponseResult `json:"result"`
-}
-
-type VulnerabilitiesResponseResult struct {
-	Registry            string   `json:"registry"`
-	ImageRepositoryName string   `json:"image_repository_name"`
-	Resource            Resource `json:"resource"`
-	Name                string   `json:"name"` // e.g. CVE-2020-3910
-	Description         string   `json:"description"`
-	AquaSeverity        string   `json:"aqua_severity"`
-	AquaVectors         string   `json:"aqua_vectors"`
-	AquaScoringSystem   string   `json:"aqua_scoring_system"`
-	FixVersion          string   `json:"fix_version"`
-}
-
-type Resource struct {
-	Type    string `json:"type"`   // e.g. package
-	Format  string `json:"format"` // e.g. deb
-	Path    string `json:"path"`
-	Name    string `json:"name"`    // e.g. libxml2
-	Version string `json:"version"` // e.g. 2.9.4+dfsg1-7+b3
-}
-
-type RegistryResponse struct {
-	Name        string   `json:"name"`
-	Type        string   `json:"type"` // e.g. HUB, API
-	Description string   `json:"description"`
-	URL         string   `json:"url"`
-	Prefixes    []string `json:"prefixes"`
 }

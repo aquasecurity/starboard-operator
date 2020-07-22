@@ -24,7 +24,7 @@ func TestClient(t *testing.T) {
 	})
 
 	t.Run("Should get vulnerabilities from Ad Hoc Scans registry", func(t *testing.T) {
-		resp, err := c.Images().Vulnerabilities("Ad Hoc Scans", "core.harbor.domain/library/nginx", "1.16")
+		resp, err := c.Images().Vulnerabilities("Ad Hoc Scans", "core.harbor.domain/library/nginx", "1.17")
 		require.NoError(t, err)
 		for _, vulnerability := range resp.Results {
 			t.Logf("vulnerability: %+v", vulnerability)
