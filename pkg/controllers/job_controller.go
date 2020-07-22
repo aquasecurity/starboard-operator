@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
-
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities"
 	"github.com/aquasecurity/starboard/pkg/kube"
 	pods "github.com/aquasecurity/starboard/pkg/kube/pod"

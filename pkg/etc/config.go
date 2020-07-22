@@ -12,7 +12,7 @@ type Config struct {
 
 type Operator struct {
 	StarboardNamespace string `env:"OPERATOR_STARBOARD_NAMESPACE" envDefault:"starboard"`
-	Namespace          string `env:"OPERATOR_NAMESPACE" envDefault:""`
+	Namespace          string `env:"OPERATOR_NAMESPACE" envDefault:"default"`
 }
 
 type ScannerTrivy struct {

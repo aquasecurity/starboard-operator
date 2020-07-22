@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	appsv1 "k8s.io/api/apps/v1"
+
 	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/aqua/scanner"
@@ -35,6 +37,7 @@ var (
 func init() {
 	_ = corev1.AddToScheme(scheme)
 	_ = batchv1.AddToScheme(scheme)
+	_ = appsv1.AddToScheme(scheme)
 	_ = starboardv1alpha1.AddToScheme(scheme)
 }
 
@@ -74,13 +77,13 @@ func run() error {
 		return fmt.Errorf("unable to start manager: %w", err)
 	}
 
-	reportsStore := reports.NewStore(mgr.GetClient())
+	store := reports.NewStore(mgr.GetClient(), scheme)
 
 	if err = (&controllers.PodReconciler{
 		StarboardNamespace: config.Operator.StarboardNamespace,
 		Namespace:          config.Operator.Namespace,
 		Client:             mgr.GetClient(),
-		Store:              reportsStore,
+		Store:              store,
 		Scanner:            scanner,
 		Log:                ctrl.Log.WithName("controllers").WithName("pod"),
 		Scheme:             mgr.GetScheme(),
@@ -91,7 +94,7 @@ func run() error {
 	if err = (&controllers.JobReconciler{
 		StarboardNamespace: config.Operator.StarboardNamespace,
 		Client:             mgr.GetClient(),
-		Store:              reportsStore,
+		Store:              store,
 		Scanner:            scanner,
 		Pods:               pods,
 		Log:                ctrl.Log.WithName("controllers").WithName("job"),
