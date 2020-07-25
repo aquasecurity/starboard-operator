@@ -14,6 +14,7 @@ const (
 )
 
 var ErrNotFound = errors.New("not found")
+var ErrUnauthorized = errors.New("unauthorized")
 
 type client struct {
 	baseURL       string
@@ -125,6 +126,9 @@ func (r *Registries) List() ([]RegistryResponse, error) {
 	resp, err := r.client.httpClient.Do(req)
 	if err != nil {
 		return nil, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, ErrUnauthorized
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected response status: %s", resp.Status)
