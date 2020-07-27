@@ -35,6 +35,7 @@ func (c *client) newGetRequest(url string) (*http.Request, error) {
 	return req, nil
 }
 
+// Clientset defines methods of the Aqua API client.
 type Clientset interface {
 	Registries() RegistriesInterface
 	Images() ImagesInterface
@@ -48,11 +49,16 @@ type RegistriesInterface interface {
 	List() ([]RegistryResponse, error)
 }
 
+// Client represents Aqua API client.
+//
+// Currently it is not possible to generate API clientset from Swagger / Open API specs,
+// but if that was possible this implementations would be deprecated.
 type Client struct {
 	registries *Registries
 	images     *Images
 }
 
+// NewClient constructs a new API client with the specified base URL and authorization details.
 func NewClient(baseURL string, authorization Authorization) *Client {
 	httpClient := &http.Client{
 		Timeout: defaultTimeout,
@@ -97,19 +103,22 @@ func (i *Images) Vulnerabilities(registry, repo, tag string) (VulnerabilitiesRes
 	if err != nil {
 		return VulnerabilitiesResponse{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
+
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
+		return VulnerabilitiesResponse{}, ErrUnauthorized
+	case http.StatusNotFound:
 		return VulnerabilitiesResponse{}, ErrNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
+	case http.StatusOK:
+		var vulnerabilitiesResponse VulnerabilitiesResponse
+		err = json.NewDecoder(resp.Body).Decode(&vulnerabilitiesResponse)
+		if err != nil {
+			return VulnerabilitiesResponse{}, err
+		}
+		return vulnerabilitiesResponse, nil
+	default:
 		return VulnerabilitiesResponse{}, fmt.Errorf("unexpected response status: %s", resp.Status)
 	}
-	var vulnerabilitiesResponse VulnerabilitiesResponse
-	err = json.NewDecoder(resp.Body).Decode(&vulnerabilitiesResponse)
-	if err != nil {
-		return VulnerabilitiesResponse{}, err
-	}
-
-	return vulnerabilitiesResponse, nil
 }
 
 type Registries struct {
@@ -127,17 +136,19 @@ func (r *Registries) List() ([]RegistryResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode == http.StatusUnauthorized {
+
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
 		return nil, ErrUnauthorized
-	}
-	if resp.StatusCode != http.StatusOK {
+	case http.StatusOK:
+		var listRegistriesResponse []RegistryResponse
+		err = json.NewDecoder(resp.Body).Decode(&listRegistriesResponse)
+		if err != nil {
+			return nil, err
+		}
+		return listRegistriesResponse, nil
+	default:
 		return nil, fmt.Errorf("unexpected response status: %s", resp.Status)
 	}
-	var listRegistriesResponse []RegistryResponse
-	err = json.NewDecoder(resp.Body).Decode(&listRegistriesResponse)
-	if err != nil {
-		return nil, err
-	}
 
-	return listRegistriesResponse, nil
 }
