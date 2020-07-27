@@ -22,5 +22,8 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
-      - name: Build binary
-        run: make
+      - name: Release snapshot
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          version: v0.138.0
+          args: release --snapshot --skip-publish --rm-dist
