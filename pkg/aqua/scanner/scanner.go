@@ -89,6 +89,7 @@ func (s *scanner) PrepareScanJob(_ context.Context, resource kube.Object, spec c
 				Spec: core.PodSpec{
 					RestartPolicy:      core.RestartPolicyNever,
 					ServiceAccountName: serviceAccountName,
+					NodeName:           spec.NodeName,
 					Volumes: []core.Volume{
 						{
 							Name: "scannercli",
