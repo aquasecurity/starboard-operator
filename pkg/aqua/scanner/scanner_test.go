@@ -63,6 +63,7 @@ func TestScanner_PrepareScanJob(t *testing.T) {
 			Name:      "nginx",
 			Namespace: "dev",
 		}, core.PodSpec{
+			NodeName: "worker-node",
 			Containers: []core.Container{
 				{
 					Name:  "nginx",
@@ -95,6 +96,7 @@ func TestScanner_PrepareScanJob(t *testing.T) {
 					Spec: core.PodSpec{
 						RestartPolicy:      core.RestartPolicyNever,
 						ServiceAccountName: "starboard-scanner-aqua",
+						NodeName:           "worker-node",
 						Volumes: []core.Volume{
 							{
 								Name: "scannercli",
