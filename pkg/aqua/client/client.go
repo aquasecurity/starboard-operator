@@ -8,13 +8,18 @@ import (
 	"time"
 )
 
+const (
+	defaultTimeout = 30 * time.Second
+	userAgent      = "StarboardSecurityOperator"
+)
+
 var ErrNotFound = errors.New("not found")
+var ErrUnauthorized = errors.New("unauthorized")
 
 type client struct {
-	baseURL    string
-	username   string
-	password   string
-	httpClient *http.Client
+	baseURL       string
+	authorization Authorization
+	httpClient    *http.Client
 }
 
 func (c *client) newGetRequest(url string) (*http.Request, error) {
@@ -23,10 +28,14 @@ func (c *client) newGetRequest(url string) (*http.Request, error) {
 		return nil, err
 	}
 	req.Header.Add("Content-Type", "application/json; charset=UTF-8")
-	req.SetBasicAuth(c.username, c.password)
+	req.Header.Add("User-Agent", userAgent)
+	if auth := c.authorization.Basic; auth != nil {
+		req.SetBasicAuth(auth.Username, auth.Password)
+	}
 	return req, nil
 }
 
+// Clientset defines methods of the Aqua API client.
 type Clientset interface {
 	Registries() RegistriesInterface
 	Images() ImagesInterface
@@ -40,29 +49,24 @@ type RegistriesInterface interface {
 	List() ([]RegistryResponse, error)
 }
 
+// Client represents Aqua API client.
+//
+// Currently it is not possible to generate API clientset from Swagger / Open API specs,
+// but if that was possible this implementations would be deprecated.
 type Client struct {
 	registries *Registries
 	images     *Images
 }
 
-type Authorization struct {
-	Basic *UsernameAndPassword
-}
-
-type UsernameAndPassword struct {
-	Username string
-	Password string
-}
-
+// NewClient constructs a new API client with the specified base URL and authorization details.
 func NewClient(baseURL string, authorization Authorization) *Client {
 	httpClient := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: defaultTimeout,
 	}
 	client := &client{
-		baseURL:    baseURL,
-		username:   authorization.Basic.Username,
-		password:   authorization.Basic.Password,
-		httpClient: httpClient,
+		baseURL:       baseURL,
+		authorization: authorization,
+		httpClient:    httpClient,
 	}
 
 	return &Client{
@@ -99,19 +103,22 @@ func (i *Images) Vulnerabilities(registry, repo, tag string) (VulnerabilitiesRes
 	if err != nil {
 		return VulnerabilitiesResponse{}, err
 	}
-	if resp.StatusCode == http.StatusNotFound {
+
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
+		return VulnerabilitiesResponse{}, ErrUnauthorized
+	case http.StatusNotFound:
 		return VulnerabilitiesResponse{}, ErrNotFound
-	}
-	if resp.StatusCode != http.StatusOK {
+	case http.StatusOK:
+		var vulnerabilitiesResponse VulnerabilitiesResponse
+		err = json.NewDecoder(resp.Body).Decode(&vulnerabilitiesResponse)
+		if err != nil {
+			return VulnerabilitiesResponse{}, err
+		}
+		return vulnerabilitiesResponse, nil
+	default:
 		return VulnerabilitiesResponse{}, fmt.Errorf("unexpected response status: %s", resp.Status)
 	}
-	var vulnerabilitiesResponse VulnerabilitiesResponse
-	err = json.NewDecoder(resp.Body).Decode(&vulnerabilitiesResponse)
-	if err != nil {
-		return VulnerabilitiesResponse{}, err
-	}
-
-	return vulnerabilitiesResponse, nil
 }
 
 type Registries struct {
@@ -129,47 +136,19 @@ func (r *Registries) List() ([]RegistryResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
+
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
+		return nil, ErrUnauthorized
+	case http.StatusOK:
+		var listRegistriesResponse []RegistryResponse
+		err = json.NewDecoder(resp.Body).Decode(&listRegistriesResponse)
+		if err != nil {
+			return nil, err
+		}
+		return listRegistriesResponse, nil
+	default:
 		return nil, fmt.Errorf("unexpected response status: %s", resp.Status)
 	}
-	var listRegistriesResponse []RegistryResponse
-	err = json.NewDecoder(resp.Body).Decode(&listRegistriesResponse)
-	if err != nil {
-		return nil, err
-	}
 
-	return listRegistriesResponse, nil
-}
-
-type VulnerabilitiesResponse struct {
-	Count   int                             `json:"count"`
-	Results []VulnerabilitiesResponseResult `json:"result"`
-}
-
-type VulnerabilitiesResponseResult struct {
-	Registry            string   `json:"registry"`
-	ImageRepositoryName string   `json:"image_repository_name"`
-	Resource            Resource `json:"resource"`
-	Name                string   `json:"name"` // e.g. CVE-2020-3910
-	Description         string   `json:"description"`
-	AquaSeverity        string   `json:"aqua_severity"`
-	AquaVectors         string   `json:"aqua_vectors"`
-	AquaScoringSystem   string   `json:"aqua_scoring_system"`
-	FixVersion          string   `json:"fix_version"`
-}
-
-type Resource struct {
-	Type    string `json:"type"`   // e.g. package
-	Format  string `json:"format"` // e.g. deb
-	Path    string `json:"path"`
-	Name    string `json:"name"`    // e.g. libxml2
-	Version string `json:"version"` // e.g. 2.9.4+dfsg1-7+b3
-}
-
-type RegistryResponse struct {
-	Name        string   `json:"name"`
-	Type        string   `json:"type"` // e.g. HUB, API
-	Description string   `json:"description"`
-	URL         string   `json:"url"`
-	Prefixes    []string `json:"prefixes"`
 }

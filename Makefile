@@ -1,15 +1,37 @@
+# Set the default goal
+.DEFAULT_GOAL := build
+
+# Active module mode, as we use Go modules to manage dependencies
+export GO111MODULE=on
+
+# Disable CGO
+export CGO_ENABLED=0
+
 SOURCES := $(shell find . -name '*.go')
-BINARY := operator
 IMAGE_TAG := dev
-IMAGE := aquasec/starboard-security-operator:$(IMAGE_TAG)
+OPERATOR_IMAGE := aquasec/starboard-security-operator:$(IMAGE_TAG)
+SCANNER_IMAGE := aquasec/starboard-scanner-aqua:$(IMAGE_TAG)
 
-build: $(BINARY)
+.PHONY: modules
+modules:
+	go mod tidy
 
-test: build
-	GO111MODULE=on go test -v -short -race -coverprofile=coverage.txt -covermode=atomic ./...
+build: operator scanner
 
-$(BINARY): $(SOURCES)
-	GOOS=linux GO111MODULE=on CGO_ENABLED=0 go build -o bin/$(BINARY) cmd/manager/main.go
+scanner: $(SOURCES)
+	go build -o bin/scanner cmd/scanner/main.go
 
-docker-build: build
-	docker build --no-cache -t $(IMAGE) -f Dockerfile bin
+operator: $(SOURCES)
+	go build -o bin/operator cmd/operator/main.go
+
+.PHONY: test
+test:
+	CGO_ENABLED=1 go test -v -short -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+docker-build: docker-build-operator docker-build-scanner
+
+docker-build-operator: build
+	docker build --no-cache -t $(OPERATOR_IMAGE) -f Dockerfile.operator bin
+
+docker-build-scanner: build
+	docker build --no-cache -t $(SCANNER_IMAGE) -f Dockerfile.scanner bin

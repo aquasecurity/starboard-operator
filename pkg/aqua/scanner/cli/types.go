@@ -1,4 +1,4 @@
-package scanner
+package cli
 
 type ResourceType int
 

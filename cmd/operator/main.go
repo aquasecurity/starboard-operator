@@ -30,6 +30,21 @@ import (
 )
 
 var (
+	// GoReleaser sets three ldflags:
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
+var (
+	versionInfo = etc.VersionInfo{
+		Version: version,
+		Commit:  commit,
+		Date:    date,
+	}
+)
+
+var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
@@ -124,7 +139,7 @@ func getEnabledScanner(config etc.Config, kubeClientset kubernetes.Interface, po
 	}
 	if config.ScannerAquaCSP.Enabled {
 		setupLog.Info("Using Aqua CSP as vulnerability scanner", "version", config.ScannerAquaCSP.Version)
-		return scanner.NewScanner(config, &scanner.RandomNamesGenerator{}, pods, scanner.NewConverter(config.ScannerAquaCSP)), nil
+		return scanner.NewScanner(versionInfo, config, &scanner.RandomNamesGenerator{}, pods), nil
 	}
 	return nil, errors.New("invalid configuration: unhandled vulnerability scanners config")
 }

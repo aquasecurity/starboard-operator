@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 
@@ -16,6 +17,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog"
 	"k8s.io/utils/pointer"
+)
+
+const (
+	serviceAccountName = "starboard-scanner-aqua"
+	secretName         = "starboard-scanner-aqua"
 )
 
 // TODO Move to libstarboard
@@ -36,18 +42,18 @@ func (g *RandomNamesGenerator) Next() string {
 }
 
 type scanner struct {
+	version        etc.VersionInfo
 	config         etc.Config
 	namesGenerator NamesGenerator
 	logsReader     LogsReader
-	converter      Converter
 }
 
-func NewScanner(config etc.Config, namesGenerator NamesGenerator, logsReader LogsReader, converter Converter) vulnerabilities.ScannerAsync {
+func NewScanner(version etc.VersionInfo, config etc.Config, namesGenerator NamesGenerator, logsReader LogsReader) vulnerabilities.ScannerAsync {
 	return &scanner{
+		version:        version,
 		config:         config,
 		namesGenerator: namesGenerator,
 		logsReader:     logsReader,
-		converter:      converter,
 	}
 }
 
@@ -82,13 +88,36 @@ func (s *scanner) PrepareScanJob(_ context.Context, resource kube.Object, spec c
 			Template: core.PodTemplateSpec{
 				Spec: core.PodSpec{
 					RestartPolicy:      core.RestartPolicyNever,
-					ServiceAccountName: "aqua-csp-vulnerability-scanner",
+					ServiceAccountName: serviceAccountName,
 					Volumes: []core.Volume{
+						{
+							Name: "scannercli",
+							VolumeSource: core.VolumeSource{
+								EmptyDir: &core.EmptyDirVolumeSource{},
+							},
+						},
 						{
 							Name: "dockersock",
 							VolumeSource: core.VolumeSource{
 								HostPath: &core.HostPathVolumeSource{
 									Path: "/var/run/docker.sock",
+								},
+							},
+						},
+					},
+					InitContainers: []core.Container{
+						{
+							Name:  "download",
+							Image: fmt.Sprintf("aquasec/scanner:%s", s.config.ScannerAquaCSP.Version),
+							Command: []string{
+								"cp",
+								"/opt/aquasec/scannercli",
+								"/downloads/scannercli",
+							},
+							VolumeMounts: []core.VolumeMount{
+								{
+									Name:      "scannercli",
+									MountPath: "/downloads",
 								},
 							},
 						},
@@ -102,15 +131,13 @@ func (s *scanner) PrepareScanJob(_ context.Context, resource kube.Object, spec c
 
 func (s *scanner) newScanJobContainer(podContainer core.Container) core.Container {
 	return core.Container{
-		Name: podContainer.Name,
-		Image: fmt.Sprintf("%s/scanner:%s",
-			s.config.ScannerAquaCSP.RegistryServer,
-			s.config.ScannerAquaCSP.Version),
+		Name:            podContainer.Name,
+		Image:           fmt.Sprintf("aquasec/starboard-scanner-aqua:%s", s.version.Version),
 		ImagePullPolicy: core.PullIfNotPresent,
 		Command: []string{
 			"/bin/sh",
 			"-c",
-			fmt.Sprintf("/opt/aquasec/scannercli scan --checkonly --host $(OPERATOR_SCANNER_AQUA_CSP_HOST) --user $(OPERATOR_SCANNER_AQUA_CSP_USER) --password $(OPERATOR_SCANNER_AQUA_CSP_PASSWORD) --local %s 2> %s",
+			fmt.Sprintf("/usr/local/bin/scanner --host $(OPERATOR_SCANNER_AQUA_CSP_HOST) --user $(OPERATOR_SCANNER_AQUA_CSP_USER) --password $(OPERATOR_SCANNER_AQUA_CSP_PASSWORD) %s 2> %s",
 				podContainer.Image,
 				core.TerminationMessagePathDefault),
 		},
@@ -120,7 +147,7 @@ func (s *scanner) newScanJobContainer(podContainer core.Container) core.Containe
 				ValueFrom: &core.EnvVarSource{
 					SecretKeyRef: &core.SecretKeySelector{
 						LocalObjectReference: core.LocalObjectReference{
-							Name: "aqua-csp-vulnerability-scanner",
+							Name: secretName,
 						},
 						Key: "OPERATOR_SCANNER_AQUA_CSP_HOST",
 					},
@@ -131,7 +158,7 @@ func (s *scanner) newScanJobContainer(podContainer core.Container) core.Containe
 				ValueFrom: &core.EnvVarSource{
 					SecretKeyRef: &core.SecretKeySelector{
 						LocalObjectReference: core.LocalObjectReference{
-							Name: "aqua-csp-vulnerability-scanner",
+							Name: secretName,
 						},
 						Key: "OPERATOR_SCANNER_AQUA_CSP_USER",
 					},
@@ -142,7 +169,7 @@ func (s *scanner) newScanJobContainer(podContainer core.Container) core.Containe
 				ValueFrom: &core.EnvVarSource{
 					SecretKeyRef: &core.SecretKeySelector{
 						LocalObjectReference: core.LocalObjectReference{
-							Name: "aqua-csp-vulnerability-scanner",
+							Name: secretName,
 						},
 						Key: "OPERATOR_SCANNER_AQUA_CSP_PASSWORD",
 					},
@@ -150,6 +177,11 @@ func (s *scanner) newScanJobContainer(podContainer core.Container) core.Containe
 			},
 		},
 		VolumeMounts: []core.VolumeMount{
+			{
+				Name:      "scannercli",
+				MountPath: "/usr/local/bin/scannercli",
+				SubPath:   "scannercli",
+			},
 			{
 				Name:      "dockersock",
 				MountPath: "/var/run/docker.sock",
@@ -192,10 +224,16 @@ func (s *scanner) processVulnerabilityReportByContainer(ctx context.Context, sca
 	defer func() {
 		_ = logsReader.Close()
 	}()
-	vulnerabilityReport, err := s.converter.Convert(imageRef, logsReader)
+	vulnerabilityReport, err := s.convert(logsReader)
 	if err != nil {
 		return v1alpha1.VulnerabilityReport{}, fmt.Errorf("converting logs to scan report: %w", err)
 	}
 
 	return vulnerabilityReport, nil
+}
+
+func (s *scanner) convert(in io.Reader) (v1alpha1.VulnerabilityReport, error) {
+	var report v1alpha1.VulnerabilityReport
+	err := json.NewDecoder(in).Decode(&report)
+	return report, err
 }

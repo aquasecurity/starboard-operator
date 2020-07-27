@@ -4,6 +4,12 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+type VersionInfo struct {
+	Version string
+	Commit  string
+	Date    string
+}
+
 type Config struct {
 	Operator       Operator
 	ScannerAquaCSP ScannerAquaCSP
@@ -21,9 +27,8 @@ type ScannerTrivy struct {
 }
 
 type ScannerAquaCSP struct {
-	Enabled        bool   `env:"OPERATOR_SCANNER_AQUA_CSP_ENABLED" envDefault:"false"`
-	Version        string `env:"OPERATOR_SCANNER_AQUA_CSP_VERSION" envDefault:"4.6"`
-	RegistryServer string `env:"OPERATOR_SCANNER_AQUA_REGISTRY_SERVER" envDefault:"aquasec.azurecr.io"`
+	Enabled bool   `env:"OPERATOR_SCANNER_AQUA_CSP_ENABLED" envDefault:"false"`
+	Version string `env:"OPERATOR_SCANNER_AQUA_CSP_VERSION" envDefault:"4.6"`
 }
 
 func GetConfig() (Config, error) {
