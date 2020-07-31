@@ -4,6 +4,8 @@
 [![GitHub Build Actions][build-action-img]][actions]
 [![Coverage Status][cov-img]][cov]
 
+This operator for Starboard automatically updates security report resources in response to workload and other changes on a Kubernetes cluster - for example, initiating a vulnerability scan when a new pod is started. Please see the main [Starboard](https://github.com/aquasecurity/starboard) repo for more info about the Starboard project. 
+
 ## Getting Started
 
 1. Define custom security resources used by Starboard:
