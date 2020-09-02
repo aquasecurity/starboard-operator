@@ -28,6 +28,7 @@ rules:
       - list
       - watch
       - create
+      - delete
   - apiGroups:
       - aquasecurity.github.io
     resources:
@@ -90,10 +91,5 @@ spec:
             - name: OPERATOR_SCANNER_AQUA_CSP_VERSION
               valueFrom:
                 secretKeyRef:
-                  name: aqua-csp-vulnerability-scanner
+                  name: starboard-scanner-aqua
                   key: OPERATOR_SCANNER_AQUA_CSP_VERSION
-            - name: OPERATOR_SCANNER_AQUA_REGISTRY_SERVER
-              valueFrom:
-                secretKeyRef:
-                  name: aqua-csp-vulnerability-scanner
-                  key: OPERATOR_SCANNER_AQUA_CSP_REGISTRY_SERVER

@@ -4,7 +4,9 @@
 [![GitHub Build Actions][build-action-img]][actions]
 [![Coverage Status][cov-img]][cov]
 
-This operator for Starboard automatically updates security report resources in response to workload and other changes on a Kubernetes cluster - for example, initiating a vulnerability scan when a new pod is started. Please see the main [Starboard](https://github.com/aquasecurity/starboard) repo for more info about the Starboard project. 
+This operator for Starboard automatically updates security report resources in response to workload and other changes on
+a Kubernetes cluster - for example, initiating a vulnerability scan when a new pod is started. Please see the main
+[Starboard](https://github.com/aquasecurity/starboard) repo for more info about the Starboard project.
 
 ## Getting Started
 
@@ -15,7 +17,11 @@ This operator for Starboard automatically updates security report resources in r
      -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/ciskubebenchreports-crd.yaml \
      -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/kubehunterreports-crd.yaml
    ```
-2. Create a Secret that holds configuration of the Aqua CSP scanner:
+2. Create the starboard namespace:
+   ```
+   $ kubectl create ns starboard
+   ```
+3. Create a Secret that holds configuration of the Aqua CSP scanner:
    ```
    $ kubectl create secret generic starboard-scanner-aqua \
      --namespace starboard \
@@ -24,11 +30,7 @@ This operator for Starboard automatically updates security report resources in r
      --from-literal OPERATOR_SCANNER_AQUA_CSP_VERSION=$AQUA_VERSION \
      --from-literal OPERATOR_SCANNER_AQUA_CSP_HOST=http://csp-console-svc.aqua:8080
    ```
-3. Create a Service Account used to run Aqua CSP scan Jobs:
-   ```
-   $ kubectl apply -f deploy/starboard-scanner-aqua.yaml
-   ```
-4. Create a Deployment for the Starboard Security Operator:
+5. Create a Deployment for the Starboard Security Operator:
    ```
    $ kubectl apply -f deploy/starboard-security-operator.yaml
    ```
