@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	serviceAccountName = "starboard-scanner-aqua"
+	serviceAccountName = "starboard-security-operator"
 	secretName         = "starboard-scanner-aqua"
 )
 

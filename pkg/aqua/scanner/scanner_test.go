@@ -95,7 +95,7 @@ func TestScanner_PrepareScanJob(t *testing.T) {
 				Template: core.PodTemplateSpec{
 					Spec: core.PodSpec{
 						RestartPolicy:      core.RestartPolicyNever,
-						ServiceAccountName: "starboard-scanner-aqua",
+						ServiceAccountName: "starboard-security-operator",
 						NodeName:           "worker-node",
 						Volumes: []core.Volume{
 							{
