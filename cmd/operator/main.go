@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	aquaScanner "github.com/aquasecurity/starboard-security-operator/pkg/aqua/scanner"
+	"github.com/aquasecurity/starboard-security-operator/pkg/aqua"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
 	trivy2 "github.com/aquasecurity/starboard-security-operator/pkg/trivy"
@@ -130,7 +130,7 @@ func getEnabledScanner(config etc.Config) (scanner.VulnerabilityScanner, error) 
 	}
 	if config.ScannerAquaCSP.Enabled {
 		setupLog.Info("Using Aqua CSP as vulnerability scanner", "version", config.ScannerAquaCSP.Version)
-		return aquaScanner.NewScanner(versionInfo, config.ScannerAquaCSP), nil
+		return aqua.NewScanner(versionInfo, config.ScannerAquaCSP), nil
 	}
 	return nil, errors.New("invalid configuration: unhandled vulnerability scanners config")
 }

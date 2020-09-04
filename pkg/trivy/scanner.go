@@ -166,8 +166,8 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 			},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit:          pointer.Int32Ptr(0),
-			Completions:           pointer.Int32Ptr(1),
+			BackoffLimit: pointer.Int32Ptr(0),
+			Completions:  pointer.Int32Ptr(1),
 			//ActiveDeadlineSeconds: scanners.GetActiveDeadlineSeconds(options.ScanJobTimeout),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

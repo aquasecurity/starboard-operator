@@ -23,9 +23,9 @@ import (
 )
 
 type PodReconciler struct {
-	Config etc.Operator
-	Client client.Client
-	Store  reports.StoreInterface
+	Config  etc.Operator
+	Client  client.Client
+	Store   reports.StoreInterface
 	Scanner scanner.VulnerabilityScanner
 	Log     logr.Logger
 	Scheme  *runtime.Scheme
@@ -144,8 +144,8 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 		Namespace:          r.Config.StarboardNamespace,
 		ServiceAccountName: r.Config.ServiceAccount,
 		// TODO Get image -> docker.Auth
-		ImageCredentials:   make(map[string]docker.Auth),
-		ScanJobTimeout:     5 * time.Minute,
+		ImageCredentials: make(map[string]docker.Auth),
+		ScanJobTimeout:   5 * time.Minute,
 	})
 	if err != nil {
 		return err
