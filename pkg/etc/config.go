@@ -17,8 +17,9 @@ type Config struct {
 }
 
 type Operator struct {
-	StarboardNamespace string `env:"OPERATOR_STARBOARD_NAMESPACE" envDefault:"starboard"`
+	StarboardNamespace string `env:"OPERATOR_STARBOARD_NAMESPACE" envDefault:"starboard-operator"`
 	Namespace          string `env:"OPERATOR_NAMESPACE" envDefault:"default"`
+	ServiceAccount     string `env:"OPERATOR_SERVICE_ACCOUNT" envDefault:"starboard-operator"`
 }
 
 type ScannerTrivy struct {
@@ -27,8 +28,11 @@ type ScannerTrivy struct {
 }
 
 type ScannerAquaCSP struct {
-	Enabled bool   `env:"OPERATOR_SCANNER_AQUA_CSP_ENABLED" envDefault:"false"`
-	Version string `env:"OPERATOR_SCANNER_AQUA_CSP_VERSION" envDefault:"4.6"`
+	Enabled  bool   `env:"OPERATOR_SCANNER_AQUA_CSP_ENABLED" envDefault:"false"`
+	Version  string `env:"OPERATOR_SCANNER_AQUA_CSP_VERSION" envDefault:"5.0"`
+	Host     string `env:"OPERATOR_SCANNER_AQUA_CSP_HOST"`
+	Username string `env:"OPERATOR_SCANNER_AQUA_CSP_USERNAME"`
+	Password string `env:"OPERATOR_SCANNER_AQUA_CSP_PASSWORD"`
 }
 
 func GetConfig() (Config, error) {

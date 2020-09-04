@@ -2,11 +2,14 @@ package controllers
 
 import (
 	"context"
+	"github.com/aquasecurity/starboard-security-operator/pkg/etc"
+	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
+	"github.com/aquasecurity/starboard/pkg/docker"
 	"reflect"
+	"time"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
 
-	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities"
 	batchv1 "k8s.io/api/batch/v1"
 
 	"github.com/aquasecurity/starboard/pkg/kube"
@@ -20,11 +23,10 @@ import (
 )
 
 type PodReconciler struct {
-	StarboardNamespace string
-	Namespace          string
-	client.Client
-	Store   reports.StoreInterface
-	Scanner vulnerabilities.ScannerAsync
+	Config etc.Operator
+	Client client.Client
+	Store  reports.StoreInterface
+	Scanner scanner.VulnerabilityScanner
 	Log     logr.Logger
 	Scheme  *runtime.Scheme
 }
@@ -44,7 +46,7 @@ type PodReconciler struct {
 func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
-	if r.Namespace != "" && r.Namespace != req.Namespace {
+	if r.Config.Namespace != "" && r.Config.Namespace != req.Namespace {
 		return ctrl.Result{}, nil
 	}
 
@@ -67,7 +69,7 @@ func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	owner := r.getImmediateOwnerReference(pod)
+	owner := GetImmediateOwnerReference(pod)
 
 	// Check if the Pod's containers have corresponding vulnerability reports
 	hasDesiredState, err := r.hasVulnerabilityReports(ctx, owner, pod)
@@ -128,7 +130,7 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 		kube.LabelResourceNamespace: p.Namespace,
 		kube.LabelResourceKind:      string(owner.Kind),
 		kube.LabelResourceName:      owner.Name,
-	}, client.InNamespace(r.StarboardNamespace))
+	}, client.InNamespace(r.Config.StarboardNamespace))
 	if err != nil {
 		return err
 	}
@@ -138,16 +140,29 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 		return nil
 	}
 
-	scanJob, err := r.Scanner.PrepareScanJob(ctx, owner, p.Spec)
+	scanJob, secret, err := r.Scanner.NewScanJob(owner, p.Spec, scanner.Options{
+		Namespace:          r.Config.StarboardNamespace,
+		ServiceAccountName: r.Config.ServiceAccount,
+		// TODO Get image -> docker.Auth
+		ImageCredentials:   make(map[string]docker.Auth),
+		ScanJobTimeout:     5 * time.Minute,
+	})
 	if err != nil {
 		return err
 	}
-
+	if secret != nil {
+		log.Info("Creating secret", "secret.name", secret.Name, "secret.namespace", secret.Namespace)
+		err = r.Client.Create(ctx, secret)
+		if err != nil {
+			return err
+		}
+	}
 	log.Info("Creating scan job", "job.name", scanJob.Name, "job.namespace", scanJob.Namespace)
-	return r.Client.Create(ctx, scanJob, &client.CreateOptions{})
+	return r.Client.Create(ctx, scanJob)
 }
 
-func (r *PodReconciler) getImmediateOwnerReference(pod *corev1.Pod) kube.Object {
+// TODO This can be an utility method
+func GetImmediateOwnerReference(pod *corev1.Pod) kube.Object {
 	ownerRef := metav1.GetControllerOf(pod)
 	if ownerRef != nil {
 		return kube.Object{
