@@ -1,6 +1,8 @@
 package scanner
 
 import (
+	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
+	"io"
 	"time"
 
 	"github.com/aquasecurity/starboard/pkg/docker"
@@ -21,11 +23,12 @@ type Options struct {
 	ScanJobTimeout time.Duration
 }
 
-// todo VulnerabilityScanJobCreator.Create() (job, secret)
 // VulnerabilityScanner defines vulnerability scanner interface.
 //
 // NewScanJob constructs a new Job descriptor, which can be sent to Kubernetes API and scheduled to scan
 // the specified Kubernetes workload with the given Pod descriptor and Options.
+//
 type VulnerabilityScanner interface {
 	NewScanJob(workload kube.Object, spec corev1.PodSpec, options Options) (*batchv1.Job, *corev1.Secret, error)
+	ParseVulnerabilityReport(imageRef string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityReport, error)
 }

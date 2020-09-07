@@ -8,7 +8,7 @@ This operator for Starboard automatically updates security report resources in r
 a Kubernetes cluster - for example, initiating a vulnerability scan when a new pod is started. Please see the main
 [Starboard](https://github.com/aquasecurity/starboard) repo for more info about the Starboard project.
 
-## Getting Started
+## Getting started
 
 1. Run `make` to build operator binaries into Docker containers:
    ```
@@ -44,11 +44,16 @@ a Kubernetes cluster - for example, initiating a vulnerability scan when a new p
 | Name                                    | Default              | Description |
 |-----------------------------------------|----------------------|-------------|
 | `OPERATOR_STARBOARD_NAMESPACE`          | `starboard-operator` | The default namespace for Starboard |
-| `OPERATOR_NAMESPACE`                    | `default`            | The namespace watched by the operator |
+| `OPERATOR_SUPERVISED_NAMESPACE`         | `default`            | The namespace watched by the operator |
+| `OPERATOR_SCAN_JOB_TIMEOUT`             | `5m`                 | The length of time to wait before giving up on a scan job |
 | `OPERATOR_SCANNER_TRIVY_ENABLED`        | `true`               | The flag to enable Trivy vulnerability scanner |
-| `OPERATOR_SCANNER_TRIVY_VERSION`        | `0.9.1`              | The version of Trivy to be used |
+| `OPERATOR_SCANNER_TRIVY_VERSION`        | `0.11.0`              | The version of Trivy to be used |
 | `OPERATOR_SCANNER_AQUA_CSP_ENABLED`     | `false`              | The flag to enable Aqua CSP vulnerability scanner |
 | `OPERATOR_SCANNER_AQUA_CSP_VERSION`     | `5.0`                | The version of Aqua CSP scannercli container image to be used |
+
+## How does it work?
+
+![](docs/starboard-operator.png)
 
 [release-img]: https://img.shields.io/github/release/aquasecurity/starboard-security-operator.svg?logo=github
 [release]: https://github.com/aquasecurity/starboard-security-operator/releases

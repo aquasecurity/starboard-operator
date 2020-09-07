@@ -20,6 +20,13 @@ rules:
       - list
       - watch
   - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+      - list
+  - apiGroups:
       - batch
     resources:
       - jobs
@@ -85,7 +92,7 @@ spec:
             - name: OPERATOR_SCANNER_TRIVY_ENABLED
               value: "true"
             - name: OPERATOR_SCANNER_TRIVY_VERSION
-              value: "0.9.1"
+              value: "0.11.0"
             - name: OPERATOR_SCANNER_AQUA_CSP_ENABLED
               value: "false"
             - name: OPERATOR_SCANNER_AQUA_CSP_VERSION

@@ -4,10 +4,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aquasecurity/starboard-security-operator/pkg/logs"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/aquasecurity/starboard-security-operator/pkg/aqua"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
-	trivy2 "github.com/aquasecurity/starboard-security-operator/pkg/trivy"
+	"github.com/aquasecurity/starboard-security-operator/pkg/trivy"
 
 	appsv1 "k8s.io/api/apps/v1"
 
@@ -70,6 +73,10 @@ func run() error {
 
 	kubernetesConfig := ctrl.GetConfigOrDie()
 	// TODO Do not use this client unless absolutely necessary. We should rely on the client constructed by the ctrl.NewManager()
+	kubernetesClientset, err := kubernetes.NewForConfig(kubernetesConfig)
+	if err != nil {
+		return err
+	}
 
 	scanner, err := getEnabledScanner(config)
 	if err != nil {
@@ -97,17 +104,17 @@ func run() error {
 		return fmt.Errorf("unable to create pod controller: %w", err)
 	}
 
-	//if err = (&controllers.JobReconciler{
-	//	StarboardNamespace: config.Operator.StarboardNamespace,
-	//	Client:             mgr.GetClient(),
-	//	Store:              store,
-	//	Scanner:            scanner,
-	//	Pods:               pods,
-	//	Log:                ctrl.Log.WithName("controllers").WithName("job"),
-	//	Scheme:             mgr.GetScheme(),
-	//}).SetupWithManager(mgr); err != nil {
-	//	return fmt.Errorf("unable to create job controller: %w", err)
-	//}
+	if err = (&controllers.JobReconciler{
+		Config:     config.Operator,
+		LogsReader: logs.NewReader(kubernetesClientset),
+		Client:     mgr.GetClient(),
+		Store:      store,
+		Scanner:    scanner,
+		Log:        ctrl.Log.WithName("controllers").WithName("job"),
+		Scheme:     mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create job controller: %w", err)
+	}
 
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
@@ -126,7 +133,7 @@ func getEnabledScanner(config etc.Config) (scanner.VulnerabilityScanner, error) 
 	}
 	if config.ScannerTrivy.Enabled {
 		setupLog.Info("Using Trivy as vulnerability scanner", "version", config.ScannerTrivy.Version)
-		return trivy2.NewScanner(), nil
+		return trivy.NewScanner(), nil
 	}
 	if config.ScannerAquaCSP.Enabled {
 		setupLog.Info("Using Aqua CSP as vulnerability scanner", "version", config.ScannerAquaCSP.Version)

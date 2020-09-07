@@ -2,13 +2,12 @@ package controllers
 
 import (
 	"context"
+	"reflect"
+
 	"github.com/aquasecurity/starboard-security-operator/pkg/etc"
+	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
 	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
 	"github.com/aquasecurity/starboard/pkg/docker"
-	"reflect"
-	"time"
-
-	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
 
 	batchv1 "k8s.io/api/batch/v1"
 
@@ -46,7 +45,7 @@ type PodReconciler struct {
 func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
-	if r.Config.Namespace != "" && r.Config.Namespace != req.Namespace {
+	if r.Config.SupervisedNamespace != "" && r.Config.SupervisedNamespace != req.Namespace {
 		return ctrl.Result{}, nil
 	}
 
@@ -65,7 +64,7 @@ func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Check if the Pod has been scheduled to a Node and all its containers are ready
-	if !r.hasContainersReadyCondition(pod) {
+	if !AllContainersHaveReadyCondition(pod) {
 		return ctrl.Result{}, nil
 	}
 
@@ -88,15 +87,6 @@ func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	return ctrl.Result{}, nil
-}
-
-func (r *PodReconciler) hasContainersReadyCondition(pod *corev1.Pod) bool {
-	for _, condition := range pod.Status.Conditions {
-		if condition.Type == corev1.ContainersReady {
-			return true
-		}
-	}
-	return false
 }
 
 // hasVulnerabilityReports checks if the vulnerability reports exist for the specified workload.
@@ -143,9 +133,8 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 	scanJob, secret, err := r.Scanner.NewScanJob(owner, p.Spec, scanner.Options{
 		Namespace:          r.Config.StarboardNamespace,
 		ServiceAccountName: r.Config.ServiceAccount,
-		// TODO Get image -> docker.Auth
-		ImageCredentials: make(map[string]docker.Auth),
-		ScanJobTimeout:   5 * time.Minute,
+		ImageCredentials:   make(map[string]docker.Auth),
+		ScanJobTimeout:     r.Config.ScanJobTimeout,
 	})
 	if err != nil {
 		return err
@@ -161,7 +150,21 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 	return r.Client.Create(ctx, scanJob)
 }
 
-// TODO This can be an utility method
+func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&corev1.Pod{}).
+		Complete(r)
+}
+
+func AllContainersHaveReadyCondition(pod *corev1.Pod) bool {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type != corev1.ContainersReady {
+			return false
+		}
+	}
+	return true
+}
+
 func GetImmediateOwnerReference(pod *corev1.Pod) kube.Object {
 	ownerRef := metav1.GetControllerOf(pod)
 	if ownerRef != nil {
@@ -176,10 +179,4 @@ func GetImmediateOwnerReference(pod *corev1.Pod) kube.Object {
 		Kind:      kube.KindPod,
 		Name:      pod.Name,
 	}
-}
-
-func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}).
-		Complete(r)
 }

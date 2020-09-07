@@ -1,17 +1,22 @@
 package aqua
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+
+	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
+	"github.com/aquasecurity/starboard/pkg/scanners"
 
 	"github.com/google/uuid"
 
-	scanner "github.com/aquasecurity/starboard-security-operator/pkg/scanner"
+	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/etc"
 	"github.com/aquasecurity/starboard/pkg/kube"
-	batch "k8s.io/api/batch/v1"
-	core "k8s.io/api/core/v1"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/utils/pointer"
 )
@@ -32,12 +37,12 @@ func NewScanner(version etc.VersionInfo, config etc.ScannerAquaCSP) scanner.Vuln
 	}
 }
 
-func (s *aquaScanner) NewScanJob(resource kube.Object, spec core.PodSpec, options scanner.Options) (*batch.Job, *core.Secret, error) {
+func (s *aquaScanner) NewScanJob(resource kube.Object, spec corev1.PodSpec, options scanner.Options) (*batchv1.Job, *corev1.Secret, error) {
 	jobName := uuid.New().String()
 	initContainerName := jobName
 
 	containerImages := kube.ContainerImages{}
-	scanJobContainers := make([]core.Container, len(spec.Containers))
+	scanJobContainers := make([]corev1.Container, len(spec.Containers))
 	for i, container := range spec.Containers {
 		containerImages[container.Name] = container.Image
 		scanJobContainers[i] = s.newScanJobContainer(container)
@@ -48,8 +53,8 @@ func (s *aquaScanner) NewScanJob(resource kube.Object, spec core.PodSpec, option
 		return nil, nil, err
 	}
 
-	return &batch.Job{
-		ObjectMeta: meta.ObjectMeta{
+	return &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      jobName,
 			Namespace: options.Namespace,
 			Labels: labels.Set{
@@ -61,38 +66,40 @@ func (s *aquaScanner) NewScanJob(resource kube.Object, spec core.PodSpec, option
 				kube.AnnotationContainerImages: containerImagesAsJSON,
 			},
 		},
-		Spec: batch.JobSpec{
-			BackoffLimit: pointer.Int32Ptr(0),
-			Template: core.PodTemplateSpec{
-				ObjectMeta: meta.ObjectMeta{
+		Spec: batchv1.JobSpec{
+			BackoffLimit:          pointer.Int32Ptr(0),
+			Completions:           pointer.Int32Ptr(1),
+			ActiveDeadlineSeconds: scanners.GetActiveDeadlineSeconds(options.ScanJobTimeout),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels.Set{
 						kube.LabelResourceKind:      string(resource.Kind),
 						kube.LabelResourceName:      resource.Name,
 						kube.LabelResourceNamespace: resource.Namespace,
 					},
 				},
-				Spec: core.PodSpec{
-					RestartPolicy:                core.RestartPolicyNever,
+				Spec: corev1.PodSpec{
+					RestartPolicy:                corev1.RestartPolicyNever,
 					ServiceAccountName:           options.ServiceAccountName,
 					AutomountServiceAccountToken: pointer.BoolPtr(false),
 					NodeName:                     spec.NodeName,
-					Volumes: []core.Volume{
+					Volumes: []corev1.Volume{
 						{
 							Name: "scannercli",
-							VolumeSource: core.VolumeSource{
-								EmptyDir: &core.EmptyDirVolumeSource{},
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{},
 							},
 						},
 						{
 							Name: "dockersock",
-							VolumeSource: core.VolumeSource{
-								HostPath: &core.HostPathVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/var/run/docker.sock",
 								},
 							},
 						},
 					},
-					InitContainers: []core.Container{
+					InitContainers: []corev1.Container{
 						{
 							Name:  initContainerName,
 							Image: fmt.Sprintf("aquasec/scanner:%s", s.config.Version),
@@ -101,7 +108,7 @@ func (s *aquaScanner) NewScanJob(resource kube.Object, spec core.PodSpec, option
 								"/opt/aquasec/scannercli",
 								"/downloads/scannercli",
 							},
-							VolumeMounts: []core.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "scannercli",
 									MountPath: "/downloads",
@@ -116,24 +123,24 @@ func (s *aquaScanner) NewScanJob(resource kube.Object, spec core.PodSpec, option
 	}, nil, nil
 }
 
-func (s *aquaScanner) newScanJobContainer(podContainer core.Container) core.Container {
-	return core.Container{
+func (s *aquaScanner) newScanJobContainer(podContainer corev1.Container) corev1.Container {
+	return corev1.Container{
 		Name:            podContainer.Name,
 		Image:           fmt.Sprintf("aquasec/starboard-scanner-aqua:%s", s.version.Version),
-		ImagePullPolicy: core.PullIfNotPresent,
+		ImagePullPolicy: corev1.PullIfNotPresent,
 		Command: []string{
 			"/bin/sh",
 			"-c",
 			fmt.Sprintf("/usr/local/bin/scanner --host $(OPERATOR_SCANNER_AQUA_CSP_HOST) --user $(OPERATOR_SCANNER_AQUA_CSP_USERNAME) --password $(OPERATOR_SCANNER_AQUA_CSP_PASSWORD) %s 2> %s",
 				podContainer.Image,
-				core.TerminationMessagePathDefault),
+				corev1.TerminationMessagePathDefault),
 		},
-		Env: []core.EnvVar{
+		Env: []corev1.EnvVar{
 			{
 				Name: "OPERATOR_SCANNER_AQUA_CSP_HOST",
-				ValueFrom: &core.EnvVarSource{
-					SecretKeyRef: &core.SecretKeySelector{
-						LocalObjectReference: core.LocalObjectReference{
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
 							Name: secretName,
 						},
 						Key: "OPERATOR_SCANNER_AQUA_CSP_HOST",
@@ -142,9 +149,9 @@ func (s *aquaScanner) newScanJobContainer(podContainer core.Container) core.Cont
 			},
 			{
 				Name: "OPERATOR_SCANNER_AQUA_CSP_USERNAME",
-				ValueFrom: &core.EnvVarSource{
-					SecretKeyRef: &core.SecretKeySelector{
-						LocalObjectReference: core.LocalObjectReference{
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
 							Name: secretName,
 						},
 						Key: "OPERATOR_SCANNER_AQUA_CSP_USERNAME",
@@ -153,9 +160,9 @@ func (s *aquaScanner) newScanJobContainer(podContainer core.Container) core.Cont
 			},
 			{
 				Name: "OPERATOR_SCANNER_AQUA_CSP_PASSWORD",
-				ValueFrom: &core.EnvVarSource{
-					SecretKeyRef: &core.SecretKeySelector{
-						LocalObjectReference: core.LocalObjectReference{
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
 							Name: secretName,
 						},
 						Key: "OPERATOR_SCANNER_AQUA_CSP_PASSWORD",
@@ -163,7 +170,7 @@ func (s *aquaScanner) newScanJobContainer(podContainer core.Container) core.Cont
 				},
 			},
 		},
-		VolumeMounts: []core.VolumeMount{
+		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      "scannercli",
 				MountPath: "/usr/local/bin/scannercli",
@@ -177,50 +184,8 @@ func (s *aquaScanner) newScanJobContainer(podContainer core.Container) core.Cont
 	}
 }
 
-//func (s *scanner) GetVulnerabilityReportsByScanJob(ctx context.Context, scanJob *batch.Job) (vulnerabilities.WorkloadVulnerabilities, error) {
-//	vulnerabilityReports := make(map[string]v1alpha1.VulnerabilityReport)
-//
-//	var containerImagesAsJSON string
-//	var ok bool
-//
-//	if containerImagesAsJSON, ok = scanJob.Annotations[kube.AnnotationContainerImages]; !ok {
-//		return nil, fmt.Errorf("scan job does not have required annotation: %s", kube.AnnotationContainerImages)
-//	}
-//	containerImages := kube.ContainerImages{}
-//	err := containerImages.FromJSON(containerImagesAsJSON)
-//	if err != nil {
-//		return nil, fmt.Errorf("reading scan job annotation: %s: %w", kube.AnnotationContainerImages, err)
-//	}
-//
-//	for _, container := range scanJob.Spec.Template.Spec.Containers {
-//		vulnerabilityReport, err := s.processVulnerabilityReportByContainer(ctx, scanJob, container.Name, containerImages[container.Name])
-//		if err != nil {
-//			klog.Errorf("Error while processing complete scan job by container: %v", err)
-//			continue
-//		}
-//		vulnerabilityReports[container.Name] = vulnerabilityReport
-//	}
-//	return vulnerabilityReports, nil
-//}
-//
-//func (s *scanner) processVulnerabilityReportByContainer(ctx context.Context, scanJob *batch.Job, container string, imageRef string) (v1alpha1.VulnerabilityReport, error) {
-//	logsReader, err := s.logsReader.GetContainerLogsByJob(ctx, scanJob, container)
-//	if err != nil {
-//		return v1alpha1.VulnerabilityReport{}, fmt.Errorf("getting logs from container %s of %s/%s: %w", container, scanJob.Namespace, scanJob.Name, err)
-//	}
-//	defer func() {
-//		_ = logsReader.Close()
-//	}()
-//	vulnerabilityReport, err := s.convert(logsReader)
-//	if err != nil {
-//		return v1alpha1.VulnerabilityReport{}, fmt.Errorf("converting logs to scan report: %w", err)
-//	}
-//
-//	return vulnerabilityReport, nil
-//}
-//
-//func (s *scanner) convert(in io.Reader) (v1alpha1.VulnerabilityReport, error) {
-//	var report v1alpha1.VulnerabilityReport
-//	err := json.NewDecoder(in).Decode(&report)
-//	return report, err
-//}
+func (s *aquaScanner) ParseVulnerabilityReport(_ string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityReport, error) {
+	var report v1alpha1.VulnerabilityReport
+	err := json.NewDecoder(logsReader).Decode(&report)
+	return report, err
+}

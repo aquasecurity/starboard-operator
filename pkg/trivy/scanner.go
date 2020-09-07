@@ -2,6 +2,12 @@ package trivy
 
 import (
 	"fmt"
+	"io"
+
+	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities/trivy"
+
+	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
+	"github.com/aquasecurity/starboard/pkg/scanners"
 
 	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
 	"github.com/aquasecurity/starboard/pkg/kube"
@@ -14,7 +20,7 @@ import (
 )
 
 const (
-	trivyImageRef = "aquasec/trivy:0.9.2"
+	trivyImageRef = "aquasec/trivy:0.11.0"
 )
 
 func NewScanner() scanner.VulnerabilityScanner {
@@ -166,9 +172,9 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 			},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: pointer.Int32Ptr(0),
-			Completions:  pointer.Int32Ptr(1),
-			//ActiveDeadlineSeconds: scanners.GetActiveDeadlineSeconds(options.ScanJobTimeout),
+			BackoffLimit:          pointer.Int32Ptr(0),
+			Completions:           pointer.Int32Ptr(1),
+			ActiveDeadlineSeconds: scanners.GetActiveDeadlineSeconds(options.ScanJobTimeout),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
@@ -178,6 +184,8 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 					},
 				},
 				Spec: corev1.PodSpec{
+					RestartPolicy:                corev1.RestartPolicyNever,
+					ServiceAccountName:           options.ServiceAccountName,
 					AutomountServiceAccountToken: pointer.BoolPtr(false),
 					Volumes: []corev1.Volume{
 						{
@@ -189,11 +197,14 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 							},
 						},
 					},
-					RestartPolicy:  corev1.RestartPolicyNever,
 					InitContainers: initContainers,
 					Containers:     scanJobContainers,
 				},
 			},
 		},
 	}, imagePullSecret, nil
+}
+
+func (s *trivyScanner) ParseVulnerabilityReport(imageRef string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityReport, error) {
+	return trivy.DefaultConverter.Convert(imageRef, logsReader)
 }
