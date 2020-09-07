@@ -2,13 +2,13 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: starboard-security-operator
-  namespace: starboard
+  name: starboard-operator
+  namespace: starboard-operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: starboard-security-operator
+  name: starboard-operator
 rules:
   - apiGroups:
       - ""
@@ -19,6 +19,13 @@ rules:
       - get
       - list
       - watch
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+      - list
   - apiGroups:
       - batch
     resources:
@@ -42,34 +49,34 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: starboard-security-operator
+  name: starboard-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: starboard-security-operator
+  name: starboard-operator
 subjects:
   - kind: ServiceAccount
-    name: starboard-security-operator
-    namespace: starboard
+    name: starboard-operator
+    namespace: starboard-operator
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: starboard-security-operator
-  namespace: starboard
+  name: starboard-operator
+  namespace: starboard-operator
   labels:
-    app: starboard-security-operator
+    app: starboard-operator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: starboard-security-operator
+      app: starboard-operator
   template:
     metadata:
       labels:
-        app: starboard-security-operator
+        app: starboard-operator
     spec:
-      serviceAccountName: starboard-security-operator
+      serviceAccountName: starboard-operator
       securityContext:
         runAsNonRoot: true
         runAsUser: 10000
@@ -85,11 +92,26 @@ spec:
             - name: OPERATOR_SCANNER_TRIVY_ENABLED
               value: "true"
             - name: OPERATOR_SCANNER_TRIVY_VERSION
-              value: "0.9.1"
+              value: "0.11.0"
             - name: OPERATOR_SCANNER_AQUA_CSP_ENABLED
               value: "false"
             - name: OPERATOR_SCANNER_AQUA_CSP_VERSION
               valueFrom:
                 secretKeyRef:
-                  name: starboard-scanner-aqua
+                  name: starboard-operator
                   key: OPERATOR_SCANNER_AQUA_CSP_VERSION
+            - name: OPERATOR_SCANNER_AQUA_CSP_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: starboard-operator
+                  key: OPERATOR_SCANNER_AQUA_CSP_HOST
+            - name: OPERATOR_SCANNER_AQUA_CSP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: starboard-operator
+                  key: OPERATOR_SCANNER_AQUA_CSP_USERNAME
+            - name: OPERATOR_SCANNER_AQUA_CSP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: starboard-operator
+                  key: OPERATOR_SCANNER_AQUA_CSP_PASSWORD

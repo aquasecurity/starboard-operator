@@ -6,11 +6,11 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: scan-job
-  namespace: starboard
+  namespace: starboard-operator
 spec:
   template:
     spec:
-      serviceAccountName: starboard-scanner-aqua
+      serviceAccountName: starboard-operator
       volumes:
         - name: scannercli
           emptyDir: {}
@@ -20,7 +20,7 @@ spec:
             path: "/var/run/docker.sock"
       initContainers:
         - name: download
-          image: aquasec/scanner:4.6
+          image: aquasec/scanner:5.0
           command:
             - cp
             - "/opt/aquasec/scannercli"
@@ -38,21 +38,21 @@ spec:
             - "/usr/local/bin/scanner --host $(OPERATOR_SCANNER_AQUA_CSP_HOST) --user $(OPERATOR_SCANNER_AQUA_CSP_USER) --password $(OPERATOR_SCANNER_AQUA_CSP_PASSWORD) $(IMAGE_REF) 2> /dev/termination-log"
           env:
             - name: IMAGE_REF
-              value: core.harbor.domain/library/nginx:1.17
+              value: nginx:1.16
             - name: OPERATOR_SCANNER_AQUA_CSP_HOST
               valueFrom:
                 secretKeyRef:
-                  name: starboard-scanner-aqua
+                  name: starboard-operator
                   key: OPERATOR_SCANNER_AQUA_CSP_HOST
             - name: OPERATOR_SCANNER_AQUA_CSP_USER
               valueFrom:
                 secretKeyRef:
-                  name: starboard-scanner-aqua
+                  name: starboard-operator
                   key: OPERATOR_SCANNER_AQUA_CSP_USER
             - name: OPERATOR_SCANNER_AQUA_CSP_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: starboard-scanner-aqua
+                  name: starboard-operator
                   key: OPERATOR_SCANNER_AQUA_CSP_PASSWORD
           volumeMounts:
             - name: scannercli
