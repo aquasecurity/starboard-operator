@@ -9,7 +9,7 @@ export CGO_ENABLED=0
 
 SOURCES := $(shell find . -name '*.go')
 IMAGE_TAG := dev
-OPERATOR_IMAGE := aquasec/starboard-security-operator:$(IMAGE_TAG)
+OPERATOR_IMAGE := aquasec/starboard-operator:$(IMAGE_TAG)
 SCANNER_IMAGE := aquasec/starboard-scanner-aqua:$(IMAGE_TAG)
 
 .PHONY: modules

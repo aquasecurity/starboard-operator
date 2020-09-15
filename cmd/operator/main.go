@@ -4,20 +4,20 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/logs"
+	"github.com/aquasecurity/starboard-operator/pkg/logs"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/aqua"
+	"github.com/aquasecurity/starboard-operator/pkg/aqua"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
-	"github.com/aquasecurity/starboard-security-operator/pkg/trivy"
+	"github.com/aquasecurity/starboard-operator/pkg/scanner"
+	"github.com/aquasecurity/starboard-operator/pkg/trivy"
 
 	appsv1 "k8s.io/api/apps/v1"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
+	"github.com/aquasecurity/starboard-operator/pkg/reports"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/controllers"
-	"github.com/aquasecurity/starboard-security-operator/pkg/etc"
+	"github.com/aquasecurity/starboard-operator/pkg/controllers"
+	"github.com/aquasecurity/starboard-operator/pkg/etc"
 	starboardv1alpha1 "github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
 

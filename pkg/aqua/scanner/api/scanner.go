@@ -3,7 +3,7 @@ package api
 import (
 	"strings"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/aqua/client"
+	"github.com/aquasecurity/starboard-operator/pkg/aqua/client"
 	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/google/go-containerregistry/pkg/name"
 )

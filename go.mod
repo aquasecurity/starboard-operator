@@ -1,4 +1,4 @@
-module github.com/aquasecurity/starboard-security-operator
+module github.com/aquasecurity/starboard-operator
 
 go 1.14
 
@@ -26,5 +26,4 @@ replace (
 	k8s.io/cli-runtime => k8s.io/cli-runtime v0.18.4
 	k8s.io/client-go => k8s.io/client-go v0.18.4
 	k8s.io/code-generator => k8s.io/code-generator v0.18.4
-	k8s.io/metrics => k8s.io/metrics v0.18.4
 )

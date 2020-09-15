@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/etc"
-	"github.com/aquasecurity/starboard-security-operator/pkg/logs"
-	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
+	"github.com/aquasecurity/starboard-operator/pkg/etc"
+	"github.com/aquasecurity/starboard-operator/pkg/logs"
+	"github.com/aquasecurity/starboard-operator/pkg/scanner"
 	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	pods "github.com/aquasecurity/starboard/pkg/kube/pod"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
+	"github.com/aquasecurity/starboard-operator/pkg/reports"
 	"github.com/aquasecurity/starboard/pkg/kube"
 	"k8s.io/apimachinery/pkg/api/errors"
 

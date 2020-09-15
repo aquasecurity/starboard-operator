@@ -1,9 +1,10 @@
 package scanner
 
 import (
-	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	"io"
 	"time"
+
+	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 
 	"github.com/aquasecurity/starboard/pkg/docker"
 	"github.com/aquasecurity/starboard/pkg/kube"

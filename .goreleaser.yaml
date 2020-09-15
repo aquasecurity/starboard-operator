@@ -37,7 +37,7 @@ changelog:
 dockers:
   - dockerfile: Dockerfile.operator
     image_templates:
-      - "docker.io/aquasec/starboard-security-operator:{{ .Version }}"
+      - "docker.io/aquasec/starboard-operator:{{ .Version }}"
     binaries:
       - operator
   - dockerfile: Dockerfile.scanner
