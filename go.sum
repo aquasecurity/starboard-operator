@@ -105,6 +105,8 @@ github.com/aphistic/golf v0.0.0-20180712155816-02c07f170c5a/go.mod h1:3NqKYiepwy
 github.com/aphistic/sweet v0.2.0/go.mod h1:fWDlIh/isSE9n6EPsRmC0det+whmX6dJid3stzu0Xys=
 github.com/aquasecurity/starboard v0.2.7-0.20200907113226-4aa0d5259b76 h1:zIDAwfavtFwIioKys2qnKNIuLjvrHaCckTJZd/ZFz4A=
 github.com/aquasecurity/starboard v0.2.7-0.20200907113226-4aa0d5259b76/go.mod h1:Xdodbl8+u6Na3ah5DoeBONtVavbCrwMA7CcpKYDBizo=
+github.com/aquasecurity/starboard v0.3.1-0.20200915085831-05e4ce57da65 h1:uRoIOcMb/uTZwlnFZtEKL373eojYTW24UpFSnwW1w5g=
+github.com/aquasecurity/starboard v0.3.1-0.20200915085831-05e4ce57da65/go.mod h1:Xdodbl8+u6Na3ah5DoeBONtVavbCrwMA7CcpKYDBizo=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmVTwzkszR9V5SSuryQ31EELlFMUz1kKyl939pY=

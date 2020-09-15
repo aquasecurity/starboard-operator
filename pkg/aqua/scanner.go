@@ -184,8 +184,8 @@ func (s *aquaScanner) newScanJobContainer(podContainer corev1.Container) corev1.
 	}
 }
 
-func (s *aquaScanner) ParseVulnerabilityReport(_ string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityReport, error) {
-	var report v1alpha1.VulnerabilityReport
+func (s *aquaScanner) ParseVulnerabilityReport(_ string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityScanResult, error) {
+	var report v1alpha1.VulnerabilityScanResult
 	err := json.NewDecoder(logsReader).Decode(&report)
 	return report, err
 }

@@ -47,7 +47,7 @@ func (s *Store) Write(ctx context.Context, workload kube.Object, reports vulnera
 	}
 
 	for container, report := range reports {
-		vulnerabilityReport := &starboardv1alpha1.Vulnerability{
+		vulnerabilityReport := &starboardv1alpha1.VulnerabilityReport{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      fmt.Sprintf(uuid.New().String()),
 				Namespace: workload.Namespace,
@@ -74,7 +74,7 @@ func (s *Store) Write(ctx context.Context, workload kube.Object, reports vulnera
 }
 
 func (s *Store) Read(ctx context.Context, workload kube.Object) (vulnerabilities.WorkloadVulnerabilities, error) {
-	vulnerabilityList := &starboardv1alpha1.VulnerabilityList{}
+	vulnerabilityList := &starboardv1alpha1.VulnerabilityReportList{}
 
 	err := s.client.List(ctx, vulnerabilityList, client.MatchingLabels{
 		kube.LabelResourceKind:      string(workload.Kind),
@@ -85,7 +85,7 @@ func (s *Store) Read(ctx context.Context, workload kube.Object) (vulnerabilities
 		return nil, err
 	}
 
-	reports := make(map[string]starboardv1alpha1.VulnerabilityReport)
+	reports := make(map[string]starboardv1alpha1.VulnerabilityScanResult)
 	for _, item := range vulnerabilityList.Items {
 		if container, ok := item.Labels[kube.LabelContainerName]; ok {
 			reports[container] = item.Report

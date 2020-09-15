@@ -30,7 +30,7 @@ spec:
               mountPath: /downloads
       containers:
         - name: scanner
-          image: aquasec/starboard-scanner-aqua:dev
+          image: docker.io/aquasec/starboard-scanner-aqua:0.0.1-alpha.2
           imagePullPolicy: IfNotPresent
           command:
             - "/bin/sh"

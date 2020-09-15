@@ -205,6 +205,6 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 	}, imagePullSecret, nil
 }
 
-func (s *trivyScanner) ParseVulnerabilityReport(imageRef string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityReport, error) {
+func (s *trivyScanner) ParseVulnerabilityReport(imageRef string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityScanResult, error) {
 	return trivy.DefaultConverter.Convert(imageRef, logsReader)
 }

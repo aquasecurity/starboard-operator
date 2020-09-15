@@ -31,5 +31,5 @@ type Options struct {
 //
 type VulnerabilityScanner interface {
 	NewScanJob(workload kube.Object, spec corev1.PodSpec, options Options) (*batchv1.Job, *corev1.Secret, error)
-	ParseVulnerabilityReport(imageRef string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityReport, error)
+	ParseVulnerabilityReport(imageRef string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityScanResult, error)
 }
