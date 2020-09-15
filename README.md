@@ -1,4 +1,4 @@
-# starboard-security-operator
+# starboard-operator
 
 [![GitHub Release][release-img]][release]
 [![GitHub Build Actions][build-action-img]][actions]
@@ -55,9 +55,9 @@ a Kubernetes cluster - for example, initiating a vulnerability scan when a new p
 
 ![](docs/starboard-operator.png)
 
-[release-img]: https://img.shields.io/github/release/aquasecurity/starboard-security-operator.svg?logo=github
-[release]: https://github.com/aquasecurity/starboard-security-operator/releases
-[build-action-img]: https://github.com/aquasecurity/starboard-security-operator/workflows/build/badge.svg
-[actions]: https://github.com/aquasecurity/starboard-security-operator/actions
-[cov-img]: https://codecov.io/github/aquasecurity/starboard-security-operator/branch/master/graph/badge.svg
-[cov]: https://codecov.io/github/aquasecurity/starboard-security-operator
+[release-img]: https://img.shields.io/github/release/aquasecurity/starboard-operator.svg?logo=github
+[release]: https://github.com/aquasecurity/starboard-operator/releases
+[build-action-img]: https://github.com/aquasecurity/starboard-operator/workflows/build/badge.svg
+[actions]: https://github.com/aquasecurity/starboard-operator/actions
+[cov-img]: https://codecov.io/github/aquasecurity/starboard-operator/branch/master/graph/badge.svg
+[cov]: https://codecov.io/github/aquasecurity/starboard-operator

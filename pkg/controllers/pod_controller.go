@@ -4,9 +4,9 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/etc"
-	"github.com/aquasecurity/starboard-security-operator/pkg/reports"
-	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
+	"github.com/aquasecurity/starboard-operator/pkg/etc"
+	"github.com/aquasecurity/starboard-operator/pkg/reports"
+	"github.com/aquasecurity/starboard-operator/pkg/scanner"
 	"github.com/aquasecurity/starboard/pkg/docker"
 
 	batchv1 "k8s.io/api/batch/v1"

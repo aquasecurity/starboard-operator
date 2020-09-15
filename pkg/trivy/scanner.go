@@ -9,7 +9,7 @@ import (
 	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/aquasecurity/starboard/pkg/scanners"
 
-	"github.com/aquasecurity/starboard-security-operator/pkg/scanner"
+	"github.com/aquasecurity/starboard-operator/pkg/scanner"
 	"github.com/aquasecurity/starboard/pkg/kube"
 	"github.com/google/uuid"
 	batchv1 "k8s.io/api/batch/v1"

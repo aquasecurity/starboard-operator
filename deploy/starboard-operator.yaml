@@ -83,7 +83,7 @@ spec:
         fsGroup: 10000
       containers:
         - name: operator
-          image: aquasec/starboard-security-operator:dev
+          image: aquasec/starboard-operator:dev
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: false
