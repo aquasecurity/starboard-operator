@@ -22,10 +22,10 @@ func NewScanner(clientset client.Clientset) *Scanner {
 	}
 }
 
-func (s *Scanner) Scan(imageRef string) (v1alpha1.VulnerabilityReport, error) {
+func (s *Scanner) Scan(imageRef string) (v1alpha1.VulnerabilityScanResult, error) {
 	registries, err := s.clientset.Registries().List()
 	if err != nil {
-		return v1alpha1.VulnerabilityReport{}, err
+		return v1alpha1.VulnerabilityScanResult{}, err
 	}
 
 	var registryName string
@@ -45,22 +45,22 @@ func (s *Scanner) Scan(imageRef string) (v1alpha1.VulnerabilityReport, error) {
 
 	reference, err := name.ParseReference(imageRef)
 	if err != nil {
-		return v1alpha1.VulnerabilityReport{}, err
+		return v1alpha1.VulnerabilityScanResult{}, err
 	}
 
 	vulnerabilities, err := s.clientset.Images().Vulnerabilities(registryName, reference.Context().RepositoryStr(), reference.Identifier())
 	if err != nil {
-		return v1alpha1.VulnerabilityReport{}, err
+		return v1alpha1.VulnerabilityScanResult{}, err
 	}
 
 	return s.convert(reference, vulnerabilities)
 }
 
-func (s *Scanner) convert(ref name.Reference, response client.VulnerabilitiesResponse) (v1alpha1.VulnerabilityReport, error) {
-	items := make([]v1alpha1.VulnerabilityItem, 0)
+func (s *Scanner) convert(ref name.Reference, response client.VulnerabilitiesResponse) (v1alpha1.VulnerabilityScanResult, error) {
+	items := make([]v1alpha1.Vulnerability, 0)
 
 	for _, result := range response.Results {
-		items = append(items, v1alpha1.VulnerabilityItem{
+		items = append(items, v1alpha1.Vulnerability{
 			VulnerabilityID:  result.Name,
 			Resource:         result.Resource.Name,
 			InstalledVersion: result.Resource.Version,
@@ -81,13 +81,13 @@ func (s *Scanner) convert(ref name.Reference, response client.VulnerabilitiesRes
 		artifact.Digest = t.DigestStr()
 	}
 
-	return v1alpha1.VulnerabilityReport{
+	return v1alpha1.VulnerabilityScanResult{
 		Scanner: v1alpha1.Scanner{
 			Name:    "Aqua CSP",
 			Version: "Aqua Security",
 		},
 		Registry: v1alpha1.Registry{
-			URL: ref.Context().RegistryStr(),
+			Server: ref.Context().RegistryStr(),
 		},
 		Artifact:        artifact,
 		Summary:         s.toSummary(items),
@@ -114,7 +114,7 @@ func (s *Scanner) toSeverity(v client.VulnerabilitiesResponseResult) v1alpha1.Se
 	}
 }
 
-func (s *Scanner) toSummary(items []v1alpha1.VulnerabilityItem) v1alpha1.VulnerabilitySummary {
+func (s *Scanner) toSummary(items []v1alpha1.Vulnerability) v1alpha1.VulnerabilitySummary {
 	summary := v1alpha1.VulnerabilitySummary{}
 	for _, item := range items {
 		switch item.Severity {

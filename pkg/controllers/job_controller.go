@@ -100,7 +100,7 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 		return fmt.Errorf("getting pod controlled by %s/%s: %w", scanJob.Namespace, scanJob.Name, err)
 	}
 
-	vulnerabilityReports := make(map[string]v1alpha1.VulnerabilityReport)
+	vulnerabilityReports := make(map[string]v1alpha1.VulnerabilityScanResult)
 	for _, container := range pod.Spec.Containers {
 		logsReader, err := r.LogsReader.GetLogsForPod(ctx, client.ObjectKey{Namespace: pod.Namespace, Name: pod.Name}, &corev1.PodLogOptions{
 			Container: container.Name,

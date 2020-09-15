@@ -3,10 +3,11 @@
 [![GitHub Release][release-img]][release]
 [![GitHub Build Actions][build-action-img]][actions]
 [![Coverage Status][cov-img]][cov]
+![Docker Pulls][docker-pulls]
 
 This operator for Starboard automatically updates security report resources in response to workload and other changes on
 a Kubernetes cluster - for example, initiating a vulnerability scan when a new pod is started. Please see the main
-[Starboard](https://github.com/aquasecurity/starboard) repo for more info about the Starboard project.
+[Starboard][starboard] repo for more info about the Starboard project.
 
 ## Getting started
 
@@ -16,7 +17,7 @@ a Kubernetes cluster - for example, initiating a vulnerability scan when a new p
    ```
 1. Define Custom Security Resources used by Starboard:
    ```
-   $ kubectl apply -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/vulnerabilities-crd.yaml \
+   $ kubectl apply -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/vulnerabilityreports-crd.yaml \
      -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/configauditreports-crd.yaml \
      -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/ciskubebenchreports-crd.yaml \
      -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/kubehunterreports-crd.yaml
@@ -61,3 +62,6 @@ a Kubernetes cluster - for example, initiating a vulnerability scan when a new p
 [actions]: https://github.com/aquasecurity/starboard-operator/actions
 [cov-img]: https://codecov.io/github/aquasecurity/starboard-operator/branch/master/graph/badge.svg
 [cov]: https://codecov.io/github/aquasecurity/starboard-operator
+[docker-pulls]: https://img.shields.io/docker/pulls/aquasec/starboard-operator?logo=docker
+
+[starboard]: https://github.com/aquasecurity/starboard

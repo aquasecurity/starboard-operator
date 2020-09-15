@@ -22,7 +22,7 @@ func NewScanner(baseURL string, credentials client.UsernameAndPassword) *Scanner
 	}
 }
 
-func (s *Scanner) Scan(imageRef string) (report v1alpha1.VulnerabilityReport, err error) {
+func (s *Scanner) Scan(imageRef string) (report v1alpha1.VulnerabilityScanResult, err error) {
 	args := []string{
 		"scan",
 		"--checkonly",
@@ -48,8 +48,8 @@ func (s *Scanner) Scan(imageRef string) (report v1alpha1.VulnerabilityReport, er
 	return s.convert(imageRef, aquaReport)
 }
 
-func (s *Scanner) convert(imageRef string, aquaReport ScanReport) (report v1alpha1.VulnerabilityReport, err error) {
-	items := make([]v1alpha1.VulnerabilityItem, 0)
+func (s *Scanner) convert(imageRef string, aquaReport ScanReport) (report v1alpha1.VulnerabilityScanResult, err error) {
+	items := make([]v1alpha1.Vulnerability, 0)
 
 	for _, resourceScan := range aquaReport.Resources {
 		for _, vln := range resourceScan.Vulnerabilities {
@@ -62,7 +62,7 @@ func (s *Scanner) convert(imageRef string, aquaReport ScanReport) (report v1alph
 			default:
 				pkg = resourceScan.Resource.Name
 			}
-			items = append(items, v1alpha1.VulnerabilityItem{
+			items = append(items, v1alpha1.Vulnerability{
 				VulnerabilityID:  vln.Name,
 				Resource:         pkg,
 				InstalledVersion: resourceScan.Resource.Version,
@@ -89,14 +89,14 @@ func (s *Scanner) convert(imageRef string, aquaReport ScanReport) (report v1alph
 		artifact.Digest = t.DigestStr()
 	}
 
-	report = v1alpha1.VulnerabilityReport{
+	report = v1alpha1.VulnerabilityScanResult{
 		Scanner: v1alpha1.Scanner{
 			Name:   "Aqua CSP",
 			Vendor: "Aqua Security",
 			//Version: c.config.Version,
 		},
 		Registry: v1alpha1.Registry{
-			URL: ref.Context().RegistryStr(),
+			Server: ref.Context().RegistryStr(),
 		},
 		Artifact:        artifact,
 		Summary:         s.toSummary(aquaReport.Summary),

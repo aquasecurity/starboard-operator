@@ -45,7 +45,7 @@ type PodReconciler struct {
 func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
-	if r.Config.SupervisedNamespace != "" && r.Config.SupervisedNamespace != req.Namespace {
+	if r.Config.StarboardNamespace == req.Namespace {
 		return ctrl.Result{}, nil
 	}
 

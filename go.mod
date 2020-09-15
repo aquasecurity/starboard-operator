@@ -3,7 +3,7 @@ module github.com/aquasecurity/starboard-operator
 go 1.14
 
 require (
-	github.com/aquasecurity/starboard v0.2.7-0.20200907113226-4aa0d5259b76
+	github.com/aquasecurity/starboard v0.3.1-0.20200915085831-05e4ce57da65
 	github.com/caarlos0/env/v6 v6.2.2
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-containerregistry v0.1.1

@@ -39,7 +39,7 @@ rules:
   - apiGroups:
       - aquasecurity.github.io
     resources:
-      - vulnerabilities
+      - vulnerabilityreports
     verbs:
       - get
       - list
@@ -83,7 +83,7 @@ spec:
         fsGroup: 10000
       containers:
         - name: operator
-          image: aquasec/starboard-operator:dev
+          image: docker.io/aquasec/starboard-operator:0.0.1-alpha.2
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: false
