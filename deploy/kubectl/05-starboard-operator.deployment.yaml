@@ -1,64 +1,4 @@
 ---
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: starboard-operator
-  namespace: starboard-operator
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: starboard-operator
-rules:
-  - apiGroups:
-      - ""
-    resources:
-      - "pods"
-      - "pods/log"
-    verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - apps
-    resources:
-      - replicasets
-    verbs:
-      - get
-      - list
-  - apiGroups:
-      - batch
-    resources:
-      - jobs
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-  - apiGroups:
-      - aquasecurity.github.io
-    resources:
-      - vulnerabilityreports
-    verbs:
-      - get
-      - list
-      - watch
-      - create
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: starboard-operator
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: starboard-operator
-subjects:
-  - kind: ServiceAccount
-    name: starboard-operator
-    namespace: starboard-operator
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -83,12 +23,16 @@ spec:
         fsGroup: 10000
       containers:
         - name: operator
-          image: docker.io/aquasec/starboard-operator:0.0.1-alpha.2
+          image: docker.io/aquasec/starboard-operator:dev
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: false
             readOnlyRootFilesystem: true
           env:
+            - name: OPERATOR_NAMESPACE
+              value: "starboard-operator"
+            - name: OPERATOR_TARGET_NAMESPACES
+              value: "starboard-operator"
             - name: OPERATOR_SCANNER_TRIVY_ENABLED
               value: "true"
             - name: OPERATOR_SCANNER_TRIVY_VERSION
@@ -100,18 +44,22 @@ spec:
                 secretKeyRef:
                   name: starboard-operator
                   key: OPERATOR_SCANNER_AQUA_CSP_VERSION
+                  optional: true
             - name: OPERATOR_SCANNER_AQUA_CSP_HOST
               valueFrom:
                 secretKeyRef:
                   name: starboard-operator
                   key: OPERATOR_SCANNER_AQUA_CSP_HOST
+                  optional: true
             - name: OPERATOR_SCANNER_AQUA_CSP_USER
               valueFrom:
                 secretKeyRef:
                   name: starboard-operator
                   key: OPERATOR_SCANNER_AQUA_CSP_USERNAME
+                  optional: true
             - name: OPERATOR_SCANNER_AQUA_CSP_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: starboard-operator
                   key: OPERATOR_SCANNER_AQUA_CSP_PASSWORD
+                  optional: true

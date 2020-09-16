@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/aquasecurity/starboard-operator/pkg/etc"
 	"github.com/aquasecurity/starboard-operator/pkg/logs"
 	"github.com/aquasecurity/starboard-operator/pkg/scanner"
@@ -36,31 +38,35 @@ type JobReconciler struct {
 
 func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("job", req.NamespacedName)
+	log := r.Log.WithValues("job", fmt.Sprintf("%s/%s", req.Namespace, req.Name))
+
 	if req.Namespace != r.Config.Namespace {
+		log.Info("Ignoring Job not managed by this operator")
 		return ctrl.Result{}, nil
 	}
 
-	j := &batchv1.Job{}
-	err := r.Client.Get(ctx, req.NamespacedName, j)
+	job := &batchv1.Job{}
+	err := r.Client.Get(ctx, req.NamespacedName, job)
 	if err != nil && errors.IsNotFound(err) {
+		log.Info("Ignoring Job that must have been deleted")
 		return ctrl.Result{}, nil
 	} else if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("getting job from cache: %w", err)
 	}
 
-	if len(j.Status.Conditions) == 0 {
+	if len(job.Status.Conditions) == 0 {
+		log.Info("Ignoring Job with unknown status condition")
 		return ctrl.Result{}, nil
 	}
 
-	switch jobCondition := j.Status.Conditions[0].Type; jobCondition {
+	switch jobCondition := job.Status.Conditions[0].Type; jobCondition {
 	case batchv1.JobComplete:
-		err := r.processCompleteScanJob(ctx, j)
+		err := r.processCompleteScanJob(ctx, job)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	case batchv1.JobFailed:
-		err := r.processFailedScanJob(ctx, j)
+		err := r.processFailedScanJob(ctx, job)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -73,8 +79,7 @@ func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 }
 
 func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *batchv1.Job) error {
-	log := r.Log.WithValues("job.name", scanJob.Name, "job.namespace", scanJob.Namespace)
-	log.Info("Started processing complete scan job")
+	log := r.Log.WithValues("job", fmt.Sprintf("%s/%s", scanJob.Namespace, scanJob.Name))
 	workload, err := kube.ObjectFromLabelsSet(scanJob.Labels)
 	if err != nil {
 		return fmt.Errorf("getting workload from scan job labels set: %w", err)
@@ -121,9 +126,8 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 	if err != nil {
 		return fmt.Errorf("writing vulnerability reports: %w", err)
 	}
-	log.Info("Finished processing complete scan job")
 	log.Info("Deleting complete scan job")
-	return r.Client.Delete(ctx, scanJob)
+	return r.Client.Delete(ctx, scanJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
 }
 
 func (r *JobReconciler) GetPodControlledBy(ctx context.Context, job *batchv1.Job) (*corev1.Pod, error) {

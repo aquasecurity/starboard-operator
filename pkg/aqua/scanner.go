@@ -58,9 +58,10 @@ func (s *aquaScanner) NewScanJob(resource kube.Object, spec corev1.PodSpec, opti
 			Name:      jobName,
 			Namespace: options.Namespace,
 			Labels: labels.Set{
-				kube.LabelResourceKind:      string(resource.Kind),
-				kube.LabelResourceName:      resource.Name,
-				kube.LabelResourceNamespace: resource.Namespace,
+				kube.LabelResourceKind:         string(resource.Kind),
+				kube.LabelResourceName:         resource.Name,
+				kube.LabelResourceNamespace:    resource.Namespace,
+				"app.kubernetes.io/managed-by": "starboard-operator",
 			},
 			Annotations: map[string]string{
 				kube.AnnotationContainerImages: containerImagesAsJSON,
@@ -73,9 +74,10 @@ func (s *aquaScanner) NewScanJob(resource kube.Object, spec corev1.PodSpec, opti
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels.Set{
-						kube.LabelResourceKind:      string(resource.Kind),
-						kube.LabelResourceName:      resource.Name,
-						kube.LabelResourceNamespace: resource.Namespace,
+						kube.LabelResourceKind:         string(resource.Kind),
+						kube.LabelResourceName:         resource.Name,
+						kube.LabelResourceNamespace:    resource.Namespace,
+						"app.kubernetes.io/managed-by": "starboard-operator",
 					},
 				},
 				Spec: corev1.PodSpec{

@@ -9,40 +9,19 @@ This operator for Starboard automatically updates security report resources in r
 a Kubernetes cluster - for example, initiating a vulnerability scan when a new pod is started. Please see the main
 [Starboard][starboard] repo for more info about the Starboard project.
 
-## Getting started
+## Contributing
 
-1. Run `make` to build operator binaries into Docker containers:
-   ```
-   $ make docker-build
-   ```
-1. Define Custom Security Resources used by Starboard:
-   ```
-   $ kubectl apply -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/vulnerabilityreports-crd.yaml
-   ```
-2. Create the `starboard-operator` Namespace:
-   ```
-   $ kubectl create ns starboard-operator
-   ```
-3. Create a Secret that holds configuration of the Aqua CSP scanner:
-   ```
-   $ kubectl create secret generic starboard-operator \
-     --namespace starboard-operator \
-     --from-literal OPERATOR_SCANNER_AQUA_CSP_USERNAME=$AQUA_CONSOLE_USERNAME \
-     --from-literal OPERATOR_SCANNER_AQUA_CSP_PASSWORD=$AQUA_CONSOLE_PASSWORD \
-     --from-literal OPERATOR_SCANNER_AQUA_CSP_VERSION=$AQUA_VERSION \
-     --from-literal OPERATOR_SCANNER_AQUA_CSP_HOST=http://csp-console-svc.aqua:8080
-   ```
-5. Create a Deployment for the Starboard Operator:
-   ```
-   $ kubectl apply -f deploy/starboard-operator.yaml
-   ```
+Thanks for taking the time to join our community and start contributing!
+
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for information about setting up your development environment and deploying the operator.
+- Check out the [open issues](https://github.com/aquasecurity/starboard-operator/issues).
 
 ## Configuration
 
 | Name                                    | Default              | Description |
 |-----------------------------------------|----------------------|-------------|
-| `OPERATOR_NAMESPACE`                    | ``                   | The namespace the operator is running in. |
-| `OPERATOR_TARGET_NAMESPACE`             | ``                   | The namespace the operator should be watching for changes. This can be a comma separated list of names to watch multiple namespaces (e.g. `ns1,ns2`). |
+| `OPERATOR_NAMESPACE`                    | N/A                  | The namespace the operator is running in. |
+| `OPERATOR_TARGET_NAMESPACES`            | N/A                  | The namespace the operator should be watching for changes. This can be a comma separated list of names to watch multiple namespaces (e.g. `ns1,ns2`). |
 | `OPERATOR_SCAN_JOB_TIMEOUT`             | `5m`                 | The length of time to wait before giving up on a scan job |
 | `OPERATOR_SCANNER_TRIVY_ENABLED`        | `true`               | The flag to enable Trivy vulnerability scanner |
 | `OPERATOR_SCANNER_TRIVY_VERSION`        | `0.11.0`             | The version of Trivy to be used |

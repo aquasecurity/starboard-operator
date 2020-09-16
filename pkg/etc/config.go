@@ -22,10 +22,10 @@ type Config struct {
 }
 
 type Operator struct {
-	Namespace       string        `env:"OPERATOR_NAMESPACE"`
-	TargetNamespace string        `env:"OPERATOR_TARGET_NAMESPACE"`
-	ServiceAccount  string        `env:"OPERATOR_SERVICE_ACCOUNT" envDefault:"starboard-operator"`
-	ScanJobTimeout  time.Duration `env:"OPERATOR_SCAN_JOB_TIMEOUT" envDefault:"5m"`
+	Namespace        string        `env:"OPERATOR_NAMESPACE"`
+	TargetNamespaces string        `env:"OPERATOR_TARGET_NAMESPACES"`
+	ServiceAccount   string        `env:"OPERATOR_SERVICE_ACCOUNT" envDefault:"starboard-operator"`
+	ScanJobTimeout   time.Duration `env:"OPERATOR_SCAN_JOB_TIMEOUT" envDefault:"5m"`
 }
 
 type ScannerTrivy struct {
@@ -58,15 +58,15 @@ func (c Config) GetOperatorNamespace() (string, error) {
 
 // GetTargetNamespaces returns namespaces the operator should be watching for changes.
 func (c Config) GetTargetNamespaces() ([]string, error) {
-	namespace := c.Operator.TargetNamespace
-	if namespace != "" {
-		return strings.Split(namespace, ","), nil
+	namespaces := c.Operator.TargetNamespaces
+	if namespaces != "" {
+		return strings.Split(namespaces, ","), nil
 	}
-	return nil, fmt.Errorf("%s must be set", "OPERATOR_TARGET_NAMESPACE")
+	return nil, fmt.Errorf("%s must be set", "OPERATOR_TARGET_NAMESPACES")
 }
 
-// ResolveInstallMode resolves install mode defined by Operator Lifecycle Manager.
-// We do that for debugging purposes.
+// ResolveInstallMode resolves install mode defined by the Operator Lifecycle Manager.
+// We do that mainly for debugging and tracing purposes.
 func ResolveInstallMode(operatorNamespace string, targetNamespaces []string) (string, error) {
 	if len(targetNamespaces) == 1 && operatorNamespace == targetNamespaces[0] {
 		return "OwnNamespace", nil
