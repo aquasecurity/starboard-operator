@@ -6,6 +6,8 @@ import (
 
 	"github.com/aquasecurity/starboard-operator/pkg/logs"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/aquasecurity/starboard-operator/pkg/aqua"
 
@@ -46,7 +48,7 @@ var (
 
 var (
 	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	setupLog = logf.Log.WithName("starboard-operator.main")
 )
 
 func init() {
@@ -59,36 +61,77 @@ func init() {
 func main() {
 	logf.SetLogger(zap.New())
 
-	ctrl.SetLogger(logf.Log.WithName("starboard-operator"))
 	if err := run(); err != nil {
 		setupLog.Error(err, "Unable to run manager")
 	}
 }
 
 func run() error {
-	config, err := etc.GetConfig()
+	setupLog.Info("Starting operator", "version", versionInfo)
+	config, err := etc.GetOperatorConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("getting operator config: %w", err)
 	}
 
-	kubernetesConfig := ctrl.GetConfigOrDie()
-	// TODO Do not use this client unless absolutely necessary. We should rely on the client constructed by the ctrl.NewManager()
+	// Validate configured namespaces
+	operatorNamespace, err := config.GetOperatorNamespace()
+	if err != nil {
+		return fmt.Errorf("getting operator namespace: %w", err)
+	}
+
+	targetNamespaces, err := config.GetTargetNamespaces()
+	if err != nil {
+		return fmt.Errorf("getting target namespaces: %w", err)
+	}
+
+	setupLog.Info("Resolving multitenancy support",
+		"operatorNamespace", operatorNamespace,
+		"targetNamespaces", targetNamespaces)
+
+	mode, err := etc.ResolveInstallMode(operatorNamespace, targetNamespaces)
+	if err != nil {
+		return fmt.Errorf("resolving install mode: %w", err)
+	}
+	setupLog.Info("Resolving install mode", "mode", mode)
+
+	// Set the default manager options.
+	options := manager.Options{
+		Scheme: scheme,
+	}
+
+	if len(targetNamespaces) == 1 {
+		// Add support for OwnNamespace and SingleNamespace set in STARBOARD_TARGET_NAMESPACE (e.g. ns1).
+		setupLog.Info("Constructing single-namespaced cache", "namespace", targetNamespaces[0])
+		options.Namespace = targetNamespaces[0]
+	} else {
+		// Add support for MultiNamespace set in STARBOARD_TARGET_NAMESPACE (e.g. ns1,ns2).
+		// Note that we may face performance issues when using this with a high number of namespaces.
+		// More: https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg/cache#MultiNamespacedCacheBuilder
+		setupLog.Info("Constructing multi-namespaced cache", "namespaces", targetNamespaces)
+		options.Namespace = ""
+		options.NewCache = cache.MultiNamespacedCacheBuilder(targetNamespaces)
+	}
+
+	kubernetesConfig, err := ctrl.GetConfig()
+	if err != nil {
+		return fmt.Errorf("getting kube client config: %w", err)
+	}
+
+	// The only reason we're using kubernetes.Clientset is that we need it to read Pod logs,
+	// which is not supported by the client returned by the ctrl.Manager.
 	kubernetesClientset, err := kubernetes.NewForConfig(kubernetesConfig)
 	if err != nil {
-		return err
+		return fmt.Errorf("constructing kube client: %w", err)
+	}
+
+	mgr, err := ctrl.NewManager(kubernetesConfig, options)
+	if err != nil {
+		return fmt.Errorf("constructing controllers manager: %w", err)
 	}
 
 	scanner, err := getEnabledScanner(config)
 	if err != nil {
 		return err
-	}
-
-	mgr, err := ctrl.NewManager(kubernetesConfig, ctrl.Options{
-		Scheme: scheme,
-	})
-
-	if err != nil {
-		return fmt.Errorf("unable to start manager: %w", err)
 	}
 
 	store := reports.NewStore(mgr.GetClient(), scheme)
@@ -98,7 +141,7 @@ func run() error {
 		Client:  mgr.GetClient(),
 		Store:   store,
 		Scanner: scanner,
-		Log:     ctrl.Log.WithName("controllers").WithName("pod"),
+		Log:     ctrl.Log.WithName("controller").WithName("pods"),
 		Scheme:  mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create pod controller: %w", err)
@@ -110,15 +153,15 @@ func run() error {
 		Client:     mgr.GetClient(),
 		Store:      store,
 		Scanner:    scanner,
-		Log:        ctrl.Log.WithName("controllers").WithName("job"),
+		Log:        ctrl.Log.WithName("controller").WithName("scan-jobs"),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create job controller: %w", err)
 	}
 
-	setupLog.Info("starting manager")
+	setupLog.Info("Starting controllers manager")
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		return fmt.Errorf("problem running manager: %w", err)
+		return fmt.Errorf("starting controllers manager: %w", err)
 	}
 
 	return nil

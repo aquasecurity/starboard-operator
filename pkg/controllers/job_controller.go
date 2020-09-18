@@ -37,7 +37,7 @@ type JobReconciler struct {
 func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("job", req.NamespacedName)
-	if req.Namespace != r.Config.StarboardNamespace {
+	if req.Namespace != r.Config.Namespace {
 		return ctrl.Result{}, nil
 	}
 

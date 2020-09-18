@@ -17,10 +17,7 @@ a Kubernetes cluster - for example, initiating a vulnerability scan when a new p
    ```
 1. Define Custom Security Resources used by Starboard:
    ```
-   $ kubectl apply -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/vulnerabilityreports-crd.yaml \
-     -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/configauditreports-crd.yaml \
-     -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/ciskubebenchreports-crd.yaml \
-     -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/kubehunterreports-crd.yaml
+   $ kubectl apply -f https://raw.githubusercontent.com/aquasecurity/starboard/master/kube/crd/vulnerabilityreports-crd.yaml
    ```
 2. Create the `starboard-operator` Namespace:
    ```
@@ -44,11 +41,11 @@ a Kubernetes cluster - for example, initiating a vulnerability scan when a new p
 
 | Name                                    | Default              | Description |
 |-----------------------------------------|----------------------|-------------|
-| `OPERATOR_STARBOARD_NAMESPACE`          | `starboard-operator` | The default namespace for Starboard |
-| `OPERATOR_SUPERVISED_NAMESPACE`         | `default`            | The namespace watched by the operator |
+| `OPERATOR_NAMESPACE`                    | ``                   | The namespace the operator is running in. |
+| `OPERATOR_TARGET_NAMESPACE`             | ``                   | The namespace the operator should be watching for changes. This can be a comma separated list of names to watch multiple namespaces (e.g. `ns1,ns2`). |
 | `OPERATOR_SCAN_JOB_TIMEOUT`             | `5m`                 | The length of time to wait before giving up on a scan job |
 | `OPERATOR_SCANNER_TRIVY_ENABLED`        | `true`               | The flag to enable Trivy vulnerability scanner |
-| `OPERATOR_SCANNER_TRIVY_VERSION`        | `0.11.0`              | The version of Trivy to be used |
+| `OPERATOR_SCANNER_TRIVY_VERSION`        | `0.11.0`             | The version of Trivy to be used |
 | `OPERATOR_SCANNER_AQUA_CSP_ENABLED`     | `false`              | The flag to enable Aqua CSP vulnerability scanner |
 | `OPERATOR_SCANNER_AQUA_CSP_VERSION`     | `5.0`                | The version of Aqua CSP scannercli container image to be used |
 

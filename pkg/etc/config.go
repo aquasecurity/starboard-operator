@@ -1,6 +1,9 @@
 package etc
 
 import (
+	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -19,10 +22,10 @@ type Config struct {
 }
 
 type Operator struct {
-	StarboardNamespace  string        `env:"OPERATOR_STARBOARD_NAMESPACE" envDefault:"starboard-operator"`
-	SupervisedNamespace string        `env:"OPERATOR_SUPERVISED_NAMESPACE" envDefault:"default"`
-	ServiceAccount      string        `env:"OPERATOR_SERVICE_ACCOUNT" envDefault:"starboard-operator"`
-	ScanJobTimeout      time.Duration `env:"OPERATOR_SCAN_JOB_TIMEOUT" envDefault:"5m"`
+	Namespace       string        `env:"OPERATOR_NAMESPACE"`
+	TargetNamespace string        `env:"OPERATOR_TARGET_NAMESPACE"`
+	ServiceAccount  string        `env:"OPERATOR_SERVICE_ACCOUNT" envDefault:"starboard-operator"`
+	ScanJobTimeout  time.Duration `env:"OPERATOR_SCAN_JOB_TIMEOUT" envDefault:"5m"`
 }
 
 type ScannerTrivy struct {
@@ -38,8 +41,41 @@ type ScannerAquaCSP struct {
 	Password string `env:"OPERATOR_SCANNER_AQUA_CSP_PASSWORD"`
 }
 
-func GetConfig() (Config, error) {
+func GetOperatorConfig() (Config, error) {
 	var config Config
 	err := env.Parse(&config)
 	return config, err
+}
+
+// GetOperatorNamespace returns the namespace the operator should be running in.
+func (c Config) GetOperatorNamespace() (string, error) {
+	namespace := c.Operator.Namespace
+	if namespace != "" {
+		return namespace, nil
+	}
+	return "", fmt.Errorf("%s must be set", "OPERATOR_NAMESPACE")
+}
+
+// GetTargetNamespaces returns namespaces the operator should be watching for changes.
+func (c Config) GetTargetNamespaces() ([]string, error) {
+	namespace := c.Operator.TargetNamespace
+	if namespace != "" {
+		return strings.Split(namespace, ","), nil
+	}
+	return nil, fmt.Errorf("%s must be set", "OPERATOR_TARGET_NAMESPACE")
+}
+
+// ResolveInstallMode resolves install mode defined by Operator Lifecycle Manager.
+// We do that for debugging purposes.
+func ResolveInstallMode(operatorNamespace string, targetNamespaces []string) (string, error) {
+	if len(targetNamespaces) == 1 && operatorNamespace == targetNamespaces[0] {
+		return "OwnNamespace", nil
+	}
+	if len(targetNamespaces) == 1 && operatorNamespace != targetNamespaces[0] {
+		return "SingleNamespace", nil
+	}
+	if len(targetNamespaces) > 1 {
+		return "MultiNamespace", nil
+	}
+	return "", errors.New("unsupported install mode")
 }
