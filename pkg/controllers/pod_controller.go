@@ -45,7 +45,7 @@ type PodReconciler struct {
 func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
-	if r.Config.StarboardNamespace == req.Namespace {
+	if r.Config.Namespace == req.Namespace {
 		return ctrl.Result{}, nil
 	}
 
@@ -120,7 +120,7 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 		kube.LabelResourceNamespace: p.Namespace,
 		kube.LabelResourceKind:      string(owner.Kind),
 		kube.LabelResourceName:      owner.Name,
-	}, client.InNamespace(r.Config.StarboardNamespace))
+	}, client.InNamespace(r.Config.Namespace))
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 	}
 
 	scanJob, secret, err := r.Scanner.NewScanJob(owner, p.Spec, scanner.Options{
-		Namespace:          r.Config.StarboardNamespace,
+		Namespace:          r.Config.Namespace,
 		ServiceAccountName: r.Config.ServiceAccount,
 		ImageCredentials:   make(map[string]docker.Auth),
 		ScanJobTimeout:     r.Config.ScanJobTimeout,
