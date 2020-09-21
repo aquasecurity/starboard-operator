@@ -163,9 +163,10 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 			Name:      jobName,
 			Namespace: options.Namespace,
 			Labels: map[string]string{
-				kube.LabelResourceKind:      string(workload.Kind),
-				kube.LabelResourceName:      workload.Name,
-				kube.LabelResourceNamespace: workload.Namespace,
+				kube.LabelResourceKind:         string(workload.Kind),
+				kube.LabelResourceName:         workload.Name,
+				kube.LabelResourceNamespace:    workload.Namespace,
+				"app.kubernetes.io/managed-by": "starboard-operator",
 			},
 			Annotations: map[string]string{
 				kube.AnnotationContainerImages: containerImagesAsJSON,
@@ -178,9 +179,10 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						kube.LabelResourceKind:      string(workload.Kind),
-						kube.LabelResourceName:      workload.Name,
-						kube.LabelResourceNamespace: workload.Namespace,
+						kube.LabelResourceKind:         string(workload.Kind),
+						kube.LabelResourceName:         workload.Name,
+						kube.LabelResourceNamespace:    workload.Namespace,
+						"app.kubernetes.io/managed-by": "starboard-operator",
 					},
 				},
 				Spec: corev1.PodSpec{

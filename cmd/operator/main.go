@@ -99,17 +99,18 @@ func run() error {
 		Scheme: scheme,
 	}
 
-	if len(targetNamespaces) == 1 {
-		// Add support for OwnNamespace and SingleNamespace set in STARBOARD_TARGET_NAMESPACE (e.g. ns1).
+	if len(targetNamespaces) == 1 && targetNamespaces[0] == operatorNamespace {
+		// Add support for OwnNamespace set in STARBOARD_TARGET_NAMESPACES (e.g. ns1).
 		setupLog.Info("Constructing single-namespaced cache", "namespace", targetNamespaces[0])
 		options.Namespace = targetNamespaces[0]
 	} else {
-		// Add support for MultiNamespace set in STARBOARD_TARGET_NAMESPACE (e.g. ns1,ns2).
+		// Add support for SingleNamespace and MultiNamespace set in STARBOARD_TARGET_NAMESPACES (e.g. ns1,ns2).
 		// Note that we may face performance issues when using this with a high number of namespaces.
 		// More: https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg/cache#MultiNamespacedCacheBuilder
-		setupLog.Info("Constructing multi-namespaced cache", "namespaces", targetNamespaces)
+		cachedNamespaces := append(targetNamespaces, operatorNamespace)
+		setupLog.Info("Constructing multi-namespaced cache", "namespaces", cachedNamespaces)
 		options.Namespace = ""
-		options.NewCache = cache.MultiNamespacedCacheBuilder(targetNamespaces)
+		options.NewCache = cache.MultiNamespacedCacheBuilder(cachedNamespaces)
 	}
 
 	kubernetesConfig, err := ctrl.GetConfig()
@@ -141,7 +142,7 @@ func run() error {
 		Client:  mgr.GetClient(),
 		Store:   store,
 		Scanner: scanner,
-		Log:     ctrl.Log.WithName("controller").WithName("pods"),
+		Log:     ctrl.Log.WithName("controller").WithName("Pod"),
 		Scheme:  mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create pod controller: %w", err)
@@ -153,7 +154,7 @@ func run() error {
 		Client:     mgr.GetClient(),
 		Store:      store,
 		Scanner:    scanner,
-		Log:        ctrl.Log.WithName("controller").WithName("scan-jobs"),
+		Log:        ctrl.Log.WithName("controller").WithName("Job"),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create job controller: %w", err)
