@@ -48,8 +48,8 @@ func GetOperatorConfig() (Config, error) {
 }
 
 // GetOperatorNamespace returns the namespace the operator should be running in.
-func (c Config) GetOperatorNamespace() (string, error) {
-	namespace := c.Operator.Namespace
+func (c Operator) GetOperatorNamespace() (string, error) {
+	namespace := c.Namespace
 	if namespace != "" {
 		return namespace, nil
 	}
@@ -57,16 +57,15 @@ func (c Config) GetOperatorNamespace() (string, error) {
 }
 
 // GetTargetNamespaces returns namespaces the operator should be watching for changes.
-func (c Config) GetTargetNamespaces() ([]string, error) {
-	namespaces := c.Operator.TargetNamespaces
+func (c Operator) GetTargetNamespaces() []string {
+	namespaces := c.TargetNamespaces
 	if namespaces != "" {
-		return strings.Split(namespaces, ","), nil
+		return strings.Split(namespaces, ",")
 	}
-	return nil, fmt.Errorf("%s must be set", "OPERATOR_TARGET_NAMESPACES")
+	return []string{}
 }
 
-// ResolveInstallMode resolves install mode defined by the Operator Lifecycle Manager.
-// We do that mainly for debugging and tracing purposes.
+// ResolveInstallMode resolves install mode as defined by the OLM (Operator Lifecycle Manager).
 func ResolveInstallMode(operatorNamespace string, targetNamespaces []string) (string, error) {
 	if len(targetNamespaces) == 1 && operatorNamespace == targetNamespaces[0] {
 		return "OwnNamespace", nil
@@ -77,5 +76,8 @@ func ResolveInstallMode(operatorNamespace string, targetNamespaces []string) (st
 	if len(targetNamespaces) > 1 {
 		return "MultiNamespace", nil
 	}
-	return "", errors.New("unsupported install mode")
+	if len(targetNamespaces) == 0 {
+		return "AllNamespaces", nil
+	}
+	return "", errors.New("unrecognized install mode")
 }

@@ -1,14 +1,14 @@
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
-  name: starboard-operator.v0.0.1-alpha.4
+  name: starboard-operator.v0.0.1
   namespace: placeholder
   annotations:
     capabilities: Basic Install
     categories: Security
     description: Keeps Starboard resources updated
     certified: "false"
-    containerImage: aquasec/starboard-operator:0.0.1-alpha.4
+    containerImage: aquasec/starboard-operator:0.0.1
     createdAt: 2020-09-15T08:00:00Z
     support: Aqua Security, Inc.
     repository: https://github.com/aquasecurity/starboard-operator
@@ -16,11 +16,106 @@ metadata:
       []
 spec:
   displayName: Starboard Operator
-  version: 0.0.1-alpha.4
+  version: 0.0.1
   description: |-
-    This operator for Starboard automatically updates security report resources in response to workload and other changes on
-    a Kubernetes cluster - for example, initiating a vulnerability scan when a new pod is started. Please see the main
-    [Starboard](https://github.io/aquasecurity/starboard) repo for more info about the Starboard project.
+    This operator for Starboard automatically updates security report resources in response to workload and other
+    changes on a Kubernetes cluster - for example, initiating a vulnerability scan when a new pod is started. Please see
+    the main [Starboard](https://github.io/aquasecurity/starboard) repo for more info about the Starboard project.
+
+    ## Deployment
+
+    ### Determine install mode
+
+    The Starboard Operator supports all install modes as defined by the Operator Lifecycle Manager spec. You'll need an
+    OperatorGroup to denote which namespaces the operator should watch.
+
+    ### OwnNamespace
+
+    Configure the operator to watch for events in the namespace it is deployed in.
+
+    ```
+    cat << EOF | kubectl apply -f -
+    apiVersion: operators.coreos.com/v1alpha2
+    kind: OperatorGroup
+    metadata:
+      name: starboard
+      namespace: operators
+    spec:
+      targetNamespaces:
+      - operators
+    EOF
+    ```
+
+    ### SingleNamespace
+
+    Configure the operator to watch for events in a single namespace that the operator is not deployed in.
+
+    ```
+    cat << EOF | kubectl apply -f -
+    apiVersion: operators.coreos.com/v1alpha2
+    kind: OperatorGroup
+    metadata:
+      name: starboard
+      namespace: operators
+    spec:
+      targetNamespaces:
+      - foo
+    EOF
+    ```
+
+    ### MultiNamespace
+
+    Configure the operator to watch for events in more than one namespace.
+
+    ```
+    cat << EOF | kubectl apply -f -
+    apiVersion: operators.coreos.com/v1alpha2
+    kind: OperatorGroup
+    metadata:
+      name: starboard
+      namespace: operators
+    spec:
+      targetNamespaces:
+      - foo
+      - bar
+      - baz
+    EOF
+    ```
+
+    ### AllNamespaces
+
+    Configure the operator to watch for events in all namespaces.
+
+    ```
+    cat << EOF | kubectl apply -f -
+    apiVersion: operators.coreos.com/v1alpha2
+    kind: OperatorGroup
+    metadata:
+      name: starboard
+      namespace: operators
+    spec: {}
+    EOF
+    ```
+
+    ## Install operator
+
+    To install the operator create a new Subscription to the selected channel for the Starboard Operator.
+    OLM uses this information to create the ClusterServiceVersion and eventually start the operator pod.
+
+    ```
+    cat << EOF | kubectl apply -f -
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: Subscription
+    metadata:
+      name: starboard-operator
+      namespace: operators
+    spec:
+      channel: alpha
+      name: starboard-operator
+      source: upstream-community-operators
+      sourceNamespace: marketplace
+    EOF
+    ```
   keywords: ['aqua-security', 'scanning', 'security']
   maintainers:
     - name: Daniel Pacak
@@ -67,7 +162,7 @@ spec:
     - type: MultiNamespace
       supported: true
     - type: AllNamespaces
-      supported: false
+      supported: true
   install:
     strategy: deployment
     spec:
@@ -77,8 +172,9 @@ spec:
             - apiGroups:
                 - ""
               resources:
-                - "pods"
-                - "pods/log"
+                - replicationcontrollers
+                - pods
+                - pods/log
               verbs:
                 - get
                 - list
@@ -86,10 +182,22 @@ spec:
             - apiGroups:
                 - apps
               resources:
+                - daemonsets
+                - deployments
                 - replicasets
+                - statefulsets
               verbs:
                 - get
                 - list
+                - watch
+            - apiGroups:
+                - batch
+              resources:
+                - cronjobs
+              verbs:
+                - get
+                - list
+                - watch
             - apiGroups:
                 - batch
               resources:
@@ -124,7 +232,7 @@ spec:
                 serviceAccountName: starboard-operator
                 containers:
                   - name: starboard-operator
-                    image: aquasec/starboard-operator:0.0.1-alpha.4
+                    image: aquasec/starboard-operator:0.0.1
                     imagePullPolicy: IfNotPresent
                     env:
                       - name: OPERATOR_NAMESPACE
