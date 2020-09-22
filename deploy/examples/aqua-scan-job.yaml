@@ -1,7 +1,7 @@
 ## This is an example scan Job that is scheduled to scan the specified image with Aqua CSP scanner.
 ## It attempts to fetch the vulnerability report with the Aqua API. If the vulnerability reports
 ## is not found, it runs the `scannercli scan` command.
-## Finally, it outputs the vulnerability reports as JSON to the stdout.
+## Finally, it outputs the vulnerability report as JSON to the stdout.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -30,7 +30,7 @@ spec:
               mountPath: /downloads
       containers:
         - name: scanner
-          image: docker.io/aquasec/starboard-scanner-aqua:0.0.1-alpha.4
+          image: docker.io/aquasec/starboard-scanner-aqua:0.0.1
           imagePullPolicy: IfNotPresent
           command:
             - "/bin/sh"
