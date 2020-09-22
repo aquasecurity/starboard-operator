@@ -50,11 +50,11 @@ which in turn determines the multitenancy support of the operator.
 To enable Aqua CSP as vulnerability scanner set the value of the `OPERATOR_SCANNER_AQUA_CSP_ENABLED` to `true` and
 disable the default Trivy scanner by setting `OPERATOR_SCANNER_TRIVY_ENABLED` to `false`.
 
-To configure the Aqua CSP scanner create the `starboard-operator` secret in the operator namespace:
+To configure the Aqua CSP scanner create the `starboard-operator` secret in the `operators` namespace:
 
 ```
 $ kubectl create secret generic starboard-operator \
- --namespace operator \
+ --namespace operators \
  --from-literal OPERATOR_SCANNER_AQUA_CSP_USERNAME=$AQUA_CONSOLE_USERNAME \
  --from-literal OPERATOR_SCANNER_AQUA_CSP_PASSWORD=$AQUA_CONSOLE_PASSWORD \
  --from-literal OPERATOR_SCANNER_AQUA_CSP_VERSION=$AQUA_VERSION \
