@@ -3,7 +3,8 @@ module github.com/aquasecurity/starboard-operator
 go 1.14
 
 require (
-	github.com/aquasecurity/starboard v0.3.1-0.20200915085831-05e4ce57da65
+	github.com/aquasecurity/starboard v0.4.1-0.20200923101908-ca60574a118f
+	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/caarlos0/env/v6 v6.2.2
 	github.com/go-logr/logr v0.1.0
 	github.com/google/go-containerregistry v0.1.1
@@ -16,7 +17,7 @@ require (
 	k8s.io/apimachinery v0.19.0-alpha.3
 	k8s.io/client-go v0.19.0-alpha.3
 	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
-	sigs.k8s.io/controller-runtime v0.6.2
+	sigs.k8s.io/controller-runtime v0.6.3
 )
 
 replace (

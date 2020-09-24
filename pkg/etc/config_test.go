@@ -44,49 +44,55 @@ func TestOperator_GetTargetNamespaces(t *testing.T) {
 	}
 }
 
-func TestResolveInstallMode(t *testing.T) {
+func TestOperator_GetInstallMode(t *testing.T) {
 	testCases := []struct {
 		name string
 
-		operatorNamespace string
-		targetNamespaces  []string
-
-		expectedInstallMode string
+		operator            etc.Operator
+		expectedInstallMode etc.InstallMode
 		expectedError       string
 	}{
 		{
-			name:                "Should resolve OwnNamespace",
-			operatorNamespace:   "operators",
-			targetNamespaces:    []string{"operators"},
-			expectedInstallMode: "OwnNamespace",
+			name: "Should resolve OwnNamespace",
+			operator: etc.Operator{
+				Namespace:        "operators",
+				TargetNamespaces: "operators",
+			},
+			expectedInstallMode: etc.InstallModeOwnNamespace,
 			expectedError:       "",
 		},
 		{
-			name:                "Should resolve SingleNamespace",
-			operatorNamespace:   "operators",
-			targetNamespaces:    []string{"foo"},
-			expectedInstallMode: "SingleNamespace",
+			name: "Should resolve SingleNamespace",
+			operator: etc.Operator{
+				Namespace:        "operators",
+				TargetNamespaces: "foo",
+			},
+			expectedInstallMode: etc.InstallModeSingleNamespace,
 			expectedError:       "",
 		},
 		{
-			name:                "Should resolve MultiNamespace",
-			operatorNamespace:   "operators",
-			targetNamespaces:    []string{"foo", "bar", "baz"},
-			expectedInstallMode: "MultiNamespace",
+			name: "Should resolve MultiNamespace",
+			operator: etc.Operator{
+				Namespace:        "operators",
+				TargetNamespaces: "foo,bar,baz",
+			},
+			expectedInstallMode: etc.InstallModeMultiNamespace,
 			expectedError:       "",
 		},
 		{
-			name:                "Should resolve AllNamespaces",
-			operatorNamespace:   "operators",
-			targetNamespaces:    []string{},
-			expectedInstallMode: "AllNamespaces",
+			name: "Should resolve AllNamespaces",
+			operator: etc.Operator{
+				Namespace:        "operators",
+				TargetNamespaces: "",
+			},
+			expectedInstallMode: etc.InstallModeAllNamespaces,
 			expectedError:       "",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			installMode, err := etc.ResolveInstallMode(tc.operatorNamespace, tc.targetNamespaces)
+			installMode, err := tc.operator.GetInstallMode()
 			switch tc.expectedError {
 			case "":
 				require.NoError(t, err)

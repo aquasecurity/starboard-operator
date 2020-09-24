@@ -3,6 +3,8 @@ package reports
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
@@ -17,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/aquasecurity/starboard/pkg/kube"
-	"github.com/google/uuid"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,6 +27,7 @@ import (
 type StoreInterface interface {
 	Write(ctx context.Context, workload kube.Object, reports vulnerabilities.WorkloadVulnerabilities) error
 	Read(ctx context.Context, workload kube.Object) (vulnerabilities.WorkloadVulnerabilities, error)
+	HasVulnerabilityReports(ctx context.Context, owner kube.Object, containerImages kube.ContainerImages) (bool, error)
 }
 
 type Store struct {
@@ -46,16 +48,19 @@ func (s *Store) Write(ctx context.Context, workload kube.Object, reports vulnera
 		return err
 	}
 
-	for container, report := range reports {
+	for containerName, report := range reports {
+		reportName := fmt.Sprintf("%s-%s-%s", strings.ToLower(string(workload.Kind)),
+			workload.Name, containerName)
+
 		vulnerabilityReport := &starboardv1alpha1.VulnerabilityReport{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf(uuid.New().String()),
+				Name:      reportName,
 				Namespace: workload.Namespace,
 				Labels: labels.Set{
 					kube.LabelResourceKind:      string(workload.Kind),
 					kube.LabelResourceName:      workload.Name,
 					kube.LabelResourceNamespace: workload.Namespace,
-					kube.LabelContainerName:     container,
+					kube.LabelContainerName:     containerName,
 				},
 			},
 			Report: report,
@@ -121,4 +126,23 @@ func (s *Store) getRuntimeObjectFor(ctx context.Context, workload kube.Object) (
 		return nil, err
 	}
 	return obj.(metav1.Object), nil
+}
+
+func (s *Store) HasVulnerabilityReports(ctx context.Context, owner kube.Object, containerImages kube.ContainerImages) (bool, error) {
+	vulnerabilityReports, err := s.Read(ctx, owner)
+	if err != nil {
+		return false, err
+	}
+
+	actual := map[string]bool{}
+	for containerName, _ := range vulnerabilityReports {
+		actual[containerName] = true
+	}
+
+	expected := map[string]bool{}
+	for containerName, _ := range containerImages {
+		expected[containerName] = true
+	}
+
+	return reflect.DeepEqual(actual, expected), nil
 }
