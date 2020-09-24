@@ -19,10 +19,10 @@ modules:
 build: operator scanner
 
 scanner: $(SOURCES)
-	go build -o bin/scanner cmd/scanner/main.go
+	GOOS=linux go build -o bin/scanner cmd/scanner/main.go
 
 operator: $(SOURCES)
-	go build -o bin/operator cmd/operator/main.go
+	GOOS=linux go build -o bin/operator cmd/operator/main.go
 
 .PHONY: test
 test:

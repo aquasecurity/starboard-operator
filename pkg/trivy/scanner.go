@@ -30,13 +30,10 @@ func NewScanner() scanner.VulnerabilityScanner {
 type trivyScanner struct {
 }
 
-func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, options scanner.Options) (*batchv1.Job, *corev1.Secret, error) {
+func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, options scanner.Options) (*batchv1.Job, error) {
 	jobName := fmt.Sprintf(uuid.New().String())
 
 	initContainerName := jobName
-	imagePullSecretName := jobName
-	imagePullSecretData := make(map[string][]byte)
-	var imagePullSecret *corev1.Secret
 
 	initContainers := []corev1.Container{
 		{
@@ -69,36 +66,6 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 		containerImages[c.Name] = c.Image
 
 		var envs []corev1.EnvVar
-
-		if dockerConfig, ok := options.ImageCredentials[c.Image]; ok {
-			registryUsernameKey := fmt.Sprintf("%s.username", c.Name)
-			registryPasswordKey := fmt.Sprintf("%s.password", c.Name)
-
-			imagePullSecretData[registryUsernameKey] = []byte(dockerConfig.Username)
-			imagePullSecretData[registryPasswordKey] = []byte(dockerConfig.Password)
-
-			envs = append(envs, corev1.EnvVar{
-				Name: "TRIVY_USERNAME",
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: imagePullSecretName,
-						},
-						Key: registryUsernameKey,
-					},
-				},
-			}, corev1.EnvVar{
-				Name: "TRIVY_PASSWORD",
-				ValueFrom: &corev1.EnvVarSource{
-					SecretKeyRef: &corev1.SecretKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: imagePullSecretName,
-						},
-						Key: registryPasswordKey,
-					},
-				},
-			})
-		}
 
 		scanJobContainers[i] = corev1.Container{
 			Name:                     c.Name,
@@ -140,22 +107,7 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 
 	containerImagesAsJSON, err := containerImages.AsJSON()
 	if err != nil {
-		return nil, nil, err
-	}
-
-	if len(imagePullSecretData) > 0 {
-		imagePullSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      imagePullSecretName,
-				Namespace: options.Namespace,
-				Labels: map[string]string{
-					kube.LabelResourceKind:      string(workload.Kind),
-					kube.LabelResourceName:      workload.Name,
-					kube.LabelResourceNamespace: workload.Namespace,
-				},
-			},
-			Data: imagePullSecretData,
-		}
+		return nil, err
 	}
 
 	return &batchv1.Job{
@@ -204,7 +156,7 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 				},
 			},
 		},
-	}, imagePullSecret, nil
+	}, nil
 }
 
 func (s *trivyScanner) ParseVulnerabilityReport(imageRef string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityScanResult, error) {
