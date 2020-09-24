@@ -78,15 +78,15 @@ func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	owner := GetImmediateOwnerReference(pod)
-	log.Info("Resolving Pod owner", "owner", owner)
+	log.Info("Resolving immediate Pod owner", "owner", owner)
 
 	// Check if containers of the Pod have corresponding VulnerabilityReports.
-	hasDesiredState, err := r.hasVulnerabilityReports(ctx, owner, pod)
+	hasVulnerabilityReports, err := r.hasVulnerabilityReports(ctx, owner, pod)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("getting vulnerability reports: %w", err)
 	}
 
-	if hasDesiredState {
+	if hasVulnerabilityReports {
 		log.Info("Ignoring Pod that already has VulnerabilityReports")
 		return ctrl.Result{}, nil
 	}
@@ -151,7 +151,7 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 		return err
 	}
 	if secret != nil {
-		log.Info("Creating secret", "secret.name", secret.Name, "secret.namespace", secret.Namespace)
+		log.Info("Creating secret", "secret", fmt.Sprintf("%s/%s", secret.Namespace, secret.Name))
 		err = r.Client.Create(ctx, secret)
 		if err != nil {
 			return err
@@ -160,12 +160,6 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 	log.Info("Creating scan job",
 		"job", fmt.Sprintf("%s/%s", scanJob.Namespace, scanJob.Name))
 	return r.Client.Create(ctx, scanJob)
-}
-
-func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}).
-		Complete(r)
 }
 
 // IsPodManagedByStarboardOperator returns true if the specified Pod
@@ -178,6 +172,8 @@ func IsPodManagedByStarboardOperator(pod *corev1.Pod) bool {
 	return exists && managedBy == "starboard-operator"
 }
 
+// HasContainersReadyCondition iterates conditions of the specified Pod to check
+// whether all containers in the Pod are ready.
 func HasContainersReadyCondition(pod *corev1.Pod) bool {
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == corev1.ContainersReady {
@@ -201,4 +197,10 @@ func GetImmediateOwnerReference(pod *corev1.Pod) kube.Object {
 		Kind:      kube.KindPod,
 		Name:      pod.Name,
 	}
+}
+
+func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&corev1.Pod{}).
+		Complete(r)
 }

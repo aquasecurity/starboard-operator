@@ -74,25 +74,22 @@ func run() error {
 	}
 
 	// Validate configured namespaces
-	operatorNamespace, err := config.GetOperatorNamespace()
+	operatorNamespace, err := config.Operator.GetOperatorNamespace()
 	if err != nil {
 		return fmt.Errorf("getting operator namespace: %w", err)
 	}
 
-	targetNamespaces, err := config.GetTargetNamespaces()
-	if err != nil {
-		return fmt.Errorf("getting target namespaces: %w", err)
-	}
+	targetNamespaces := config.Operator.GetTargetNamespaces()
 
 	setupLog.Info("Resolving multitenancy support",
 		"operatorNamespace", operatorNamespace,
 		"targetNamespaces", targetNamespaces)
 
-	mode, err := etc.ResolveInstallMode(operatorNamespace, targetNamespaces)
+	installMode, err := etc.ResolveInstallMode(operatorNamespace, targetNamespaces)
 	if err != nil {
 		return fmt.Errorf("resolving install mode: %w", err)
 	}
-	setupLog.Info("Resolving install mode", "mode", mode)
+	setupLog.Info("Resolving install mode", "mode", installMode)
 
 	// Set the default manager options.
 	options := manager.Options{
@@ -103,7 +100,7 @@ func run() error {
 		// Add support for OwnNamespace set in STARBOARD_TARGET_NAMESPACES (e.g. ns1).
 		setupLog.Info("Constructing single-namespaced cache", "namespace", targetNamespaces[0])
 		options.Namespace = targetNamespaces[0]
-	} else {
+	} else if len(targetNamespaces) > 0 {
 		// Add support for SingleNamespace and MultiNamespace set in STARBOARD_TARGET_NAMESPACES (e.g. ns1,ns2).
 		// Note that we may face performance issues when using this with a high number of namespaces.
 		// More: https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg/cache#MultiNamespacedCacheBuilder
@@ -111,6 +108,9 @@ func run() error {
 		setupLog.Info("Constructing multi-namespaced cache", "namespaces", cachedNamespaces)
 		options.Namespace = ""
 		options.NewCache = cache.MultiNamespacedCacheBuilder(cachedNamespaces)
+	} else if len(targetNamespaces) == 0 {
+		setupLog.Info("Disabling cache and watching all namespaces")
+		options.Namespace = ""
 	}
 
 	kubernetesConfig, err := ctrl.GetConfig()
