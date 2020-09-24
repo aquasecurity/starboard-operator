@@ -182,22 +182,57 @@ the operator in the same namespace as supervised workloads.
    You'll need an OperatorGroup to denote which namespaces the operator should watch. It must exist in the namespace
    where you want to deploy the operator.
 
-3. Create the Subscription resource:
+3. Create the Subscription resource
+   1. with Trivy scanner, which is enabled by default:
 
-   ```
-   cat << EOF | kubectl apply -f -
-   apiVersion: operators.coreos.com/v1alpha1
-   kind: Subscription
-   metadata:
-     name: starboard-operator
-     namespace: marketplace
-   spec:
-     channel: alpha
-     name: starboard-operator
-     source: $QUAY_NAMESPACE-operators
-     sourceNamespace: marketplace
-   EOF
-   ```
+      ```
+      $ cat << EOF | kubectl apply -f -
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: Subscription
+      metadata:
+        name: starboard-operator
+        namespace: marketplace
+      spec:
+        channel: alpha
+        name: starboard-operator
+        source: $QUAY_NAMESPACE-operators
+        sourceNamespace: marketplace
+      EOF
+      ```
+   2. with Aqua CSP scanner:
+
+      ```
+      $ kubectl create secret generic starboard-operator \
+          --namespace marketplace \
+          --from-literal OPERATOR_SCANNER_AQUA_CSP_USERNAME=$AQUA_CONSOLE_USERNAME \
+          --from-literal OPERATOR_SCANNER_AQUA_CSP_PASSWORD=$AQUA_CONSOLE_PASSWORD \
+          --from-literal OPERATOR_SCANNER_AQUA_CSP_VERSION=$AQUA_VERSION \
+          --from-literal OPERATOR_SCANNER_AQUA_CSP_HOST=http://csp-console-svc.aqua:8080
+      ```
+
+      ```
+      $ cat << EOF | kubectl apply -f -
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: Subscription
+      metadata:
+        name: starboard-operator
+        namespace: marketplace
+      spec:
+        channel: alpha
+        name: starboard-operator
+        source: $QUAY_NAMESPACE-operators
+        sourceNamespace: marketplace
+        config:
+          env:
+          - name: OPERATOR_SCANNER_TRIVY_ENABLED
+            value: "false"
+          - name: OPERATOR_SCANNER_AQUA_CSP_ENABLED
+            value: "true"
+          envFrom:
+          - secretRef:
+              name: starboard-operator
+      EOF
+      ```
 
    A Subscription links the previous steps together by selecting an operator and one of its channels. OLM uses this
    information to start the corresponding operator Pod. The example above creates a new Subscription to the `alpha`

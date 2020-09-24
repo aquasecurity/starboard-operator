@@ -81,36 +81,44 @@ func run() error {
 
 	targetNamespaces := config.Operator.GetTargetNamespaces()
 
-	setupLog.Info("Resolving multitenancy support",
+	installMode, err := config.Operator.GetInstallMode()
+	if err != nil {
+		return fmt.Errorf("getting install mode: %w", err)
+	}
+	setupLog.Info("Resolving install mode", "installMode", installMode,
 		"operatorNamespace", operatorNamespace,
 		"targetNamespaces", targetNamespaces)
-
-	installMode, err := etc.ResolveInstallMode(operatorNamespace, targetNamespaces)
-	if err != nil {
-		return fmt.Errorf("resolving install mode: %w", err)
-	}
-	setupLog.Info("Resolving install mode", "mode", installMode)
 
 	// Set the default manager options.
 	options := manager.Options{
 		Scheme: scheme,
 	}
 
-	if len(targetNamespaces) == 1 && targetNamespaces[0] == operatorNamespace {
-		// Add support for OwnNamespace set in STARBOARD_TARGET_NAMESPACES (e.g. ns1).
+	switch installMode {
+	case etc.InstallModeOwnNamespace:
+		// Add support for OwnNamespace set in STARBOARD_NAMESPACE (e.g. marketplace) and STARBOARD_TARGET_NAMESPACES (e.g. marketplace)
 		setupLog.Info("Constructing single-namespaced cache", "namespace", targetNamespaces[0])
 		options.Namespace = targetNamespaces[0]
-	} else if len(targetNamespaces) > 0 {
-		// Add support for SingleNamespace and MultiNamespace set in STARBOARD_TARGET_NAMESPACES (e.g. ns1,ns2).
+	case etc.InstallModeSingleNamespace:
+		// Add support for SingleNamespace set in STARBOARD_NAMESPACE (e.g. marketplace) and STARBOARD_TARGET_NAMESPACES (e.g. foo)
+		cachedNamespaces := append(targetNamespaces, operatorNamespace)
+		setupLog.Info("Constructing multi-namespaced cache", "namespaces", cachedNamespaces)
+		options.Namespace = targetNamespaces[0]
+		options.NewCache = cache.MultiNamespacedCacheBuilder(cachedNamespaces)
+	case etc.InstallModeMultiNamespace:
+		// Add support for MultiNamespace set in STARBOARD_NAMESPACE (e.g. marketplace) and STARBOARD_TARGET_NAMESPACES (e.g. foo,bar).
 		// Note that we may face performance issues when using this with a high number of namespaces.
 		// More: https://godoc.org/github.com/kubernetes-sigs/controller-runtime/pkg/cache#MultiNamespacedCacheBuilder
 		cachedNamespaces := append(targetNamespaces, operatorNamespace)
 		setupLog.Info("Constructing multi-namespaced cache", "namespaces", cachedNamespaces)
 		options.Namespace = ""
 		options.NewCache = cache.MultiNamespacedCacheBuilder(cachedNamespaces)
-	} else if len(targetNamespaces) == 0 {
-		setupLog.Info("Disabling cache and watching all namespaces")
+	case etc.InstallModeAllNamespaces:
+		// Add support for AllNamespaces set in STARBOARD_NAMESPACE (e.g. marketplace) and STARBOARD_TARGET_NAMESPACES left blank.
+		setupLog.Info("Watching all namespaces")
 		options.Namespace = ""
+	default:
+		return fmt.Errorf("unrecognized install mode: %v", installMode)
 	}
 
 	kubernetesConfig, err := ctrl.GetConfig()

@@ -3,13 +3,13 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/aquasecurity/starboard-operator/pkg/resources"
 
 	"github.com/aquasecurity/starboard-operator/pkg/etc"
 	"github.com/aquasecurity/starboard-operator/pkg/reports"
 	"github.com/aquasecurity/starboard-operator/pkg/scanner"
-	"github.com/aquasecurity/starboard/pkg/docker"
-
 	batchv1 "k8s.io/api/batch/v1"
 
 	"github.com/aquasecurity/starboard/pkg/kube"
@@ -50,8 +50,18 @@ func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	log := r.Log.WithValues("pod", fmt.Sprintf("%s/%s", req.Namespace, req.Name))
 
+	installMode, err := r.Config.GetInstallMode()
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("getting install mode: %w", err)
+	}
+
+	if r.IgnorePodInOperatorNamespace(installMode, req.NamespacedName) {
+		log.Info("Ignoring Pod run in the operator namespace")
+		return ctrl.Result{}, nil
+	}
+
 	// Retrieve the Pod from cache.
-	err := r.Client.Get(ctx, req.NamespacedName, pod)
+	err = r.Client.Get(ctx, req.NamespacedName, pod)
 	if err != nil && errors.IsNotFound(err) {
 		log.Info("Ignoring Pod that must have been deleted")
 		return ctrl.Result{}, nil
@@ -81,7 +91,7 @@ func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	log.Info("Resolving immediate Pod owner", "owner", owner)
 
 	// Check if containers of the Pod have corresponding VulnerabilityReports.
-	hasVulnerabilityReports, err := r.hasVulnerabilityReports(ctx, owner, pod)
+	hasVulnerabilityReports, err := r.Store.HasVulnerabilityReports(ctx, owner, resources.GetContainerImagesFromPodSpec(pod.Spec))
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("getting vulnerability reports: %w", err)
 	}
@@ -98,26 +108,6 @@ func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	return ctrl.Result{}, nil
-}
-
-// hasVulnerabilityReports checks if the vulnerability reports exist for the specified workload.
-func (r *PodReconciler) hasVulnerabilityReports(ctx context.Context, owner kube.Object, p *corev1.Pod) (bool, error) {
-	vulnerabilityReports, err := r.Store.Read(ctx, owner)
-	if err != nil {
-		return false, err
-	}
-
-	actual := map[string]bool{}
-	for containerName, _ := range vulnerabilityReports {
-		actual[containerName] = true
-	}
-
-	expected := map[string]bool{}
-	for _, container := range p.Spec.Containers {
-		expected[container.Name] = true
-	}
-
-	return reflect.DeepEqual(actual, expected), nil
 }
 
 func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p *corev1.Pod) error {
@@ -141,25 +131,46 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, p 
 		return nil
 	}
 
-	scanJob, secret, err := r.Scanner.NewScanJob(owner, p.Spec, scanner.Options{
+	scanJob, err := r.Scanner.NewScanJob(owner, p.Spec, scanner.Options{
 		Namespace:          r.Config.Namespace,
 		ServiceAccountName: r.Config.ServiceAccount,
-		ImageCredentials:   make(map[string]docker.Auth),
 		ScanJobTimeout:     r.Config.ScanJobTimeout,
 	})
 	if err != nil {
-		return err
-	}
-	if secret != nil {
-		log.Info("Creating secret", "secret", fmt.Sprintf("%s/%s", secret.Namespace, secret.Name))
-		err = r.Client.Create(ctx, secret)
-		if err != nil {
-			return err
-		}
+		return fmt.Errorf("constructing scan job: %w", err)
 	}
 	log.Info("Creating scan job",
 		"job", fmt.Sprintf("%s/%s", scanJob.Namespace, scanJob.Name))
 	return r.Client.Create(ctx, scanJob)
+}
+
+// IgnorePodInOperatorNamespace determines whether to reconcile the specified Pod
+// based on the give InstallMode or not. Returns true if the Pod should be ignored,
+// false otherwise.
+//
+// In the SingleNamespace install mode we're configuring Client cache
+// to watch the operator namespace, in which the operator runs scan Jobs.
+// However, we do not want to scan the workloads that might run in the
+// operator namespace.
+//
+// In the MultiNamespace install mode we're configuring Client cache
+// to watch the operator namespace, in which the operator runs scan Jobs.
+// However, we do not want to scan the workloads that might run in the
+// operator namespace unless the operator namespace is added to the list
+// of target namespaces.
+func (r *PodReconciler) IgnorePodInOperatorNamespace(installMode etc.InstallMode, pod types.NamespacedName) bool {
+	if installMode == etc.InstallModeSingleNamespace &&
+		pod.Namespace == r.Config.Namespace {
+		return true
+	}
+
+	if installMode == etc.InstallModeMultiNamespace &&
+		pod.Namespace == r.Config.Namespace &&
+		!SliceContainsString(r.Config.GetTargetNamespaces(), r.Config.Namespace) {
+		return true
+	}
+
+	return false
 }
 
 // IsPodManagedByStarboardOperator returns true if the specified Pod
@@ -183,6 +194,9 @@ func HasContainersReadyCondition(pod *corev1.Pod) bool {
 	return false
 }
 
+// GetImmediateOwnerReference returns the immediate owner of the specified Pod.
+// For example, for a Pod controlled by a Deployment it will return the active ReplicaSet object,
+// whereas for an unmanaged Pod the immediate owner is the Pod itself.
 func GetImmediateOwnerReference(pod *corev1.Pod) kube.Object {
 	ownerRef := metav1.GetControllerOf(pod)
 	if ownerRef != nil {
@@ -203,4 +217,16 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		Complete(r)
+}
+
+// SliceContainsString returns true if the specified slice of strings
+// contains the give value, false otherwise.
+func SliceContainsString(slice []string, value string) bool {
+	exists := false
+	for _, targetNamespace := range slice {
+		if targetNamespace == value {
+			exists = true
+		}
+	}
+	return exists
 }

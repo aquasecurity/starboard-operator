@@ -1,7 +1,6 @@
 package etc
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -65,19 +64,32 @@ func (c Operator) GetTargetNamespaces() []string {
 	return []string{}
 }
 
-// ResolveInstallMode resolves install mode as defined by the OLM (Operator Lifecycle Manager).
-func ResolveInstallMode(operatorNamespace string, targetNamespaces []string) (string, error) {
+// InstallMode represents multitenancy support defined by the Operator Lifecycle Manager spec.
+type InstallMode string
+
+const (
+	InstallModeOwnNamespace    InstallMode = "OwnNamespace"
+	InstallModeSingleNamespace InstallMode = "SingleNamespace"
+	InstallModeMultiNamespace  InstallMode = "MultiNamespace"
+	InstallModeAllNamespaces   InstallMode = "AllNamespaces"
+)
+
+// GetInstallMode resolves InstallMode based on configured operator and target namespaces.
+func (c Operator) GetInstallMode() (InstallMode, error) {
+	operatorNamespace, err := c.GetOperatorNamespace()
+	if err != nil {
+		return "", nil
+	}
+	targetNamespaces := c.GetTargetNamespaces()
+
 	if len(targetNamespaces) == 1 && operatorNamespace == targetNamespaces[0] {
-		return "OwnNamespace", nil
+		return InstallModeOwnNamespace, nil
 	}
 	if len(targetNamespaces) == 1 && operatorNamespace != targetNamespaces[0] {
-		return "SingleNamespace", nil
+		return InstallModeSingleNamespace, nil
 	}
 	if len(targetNamespaces) > 1 {
-		return "MultiNamespace", nil
+		return InstallModeMultiNamespace, nil
 	}
-	if len(targetNamespaces) == 0 {
-		return "AllNamespaces", nil
-	}
-	return "", errors.New("unrecognized install mode")
+	return InstallModeAllNamespaces, nil
 }

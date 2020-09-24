@@ -3,8 +3,8 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"reflect"
 
+	"github.com/aquasecurity/starboard-operator/pkg/resources"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aquasecurity/starboard-operator/pkg/etc"
@@ -55,7 +55,7 @@ func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if len(job.Status.Conditions) == 0 {
-		log.Info("Ignoring Job with unknown status condition")
+		log.Info("Ignoring Job without status conditions")
 		return ctrl.Result{}, nil
 	}
 
@@ -85,12 +85,12 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 		return fmt.Errorf("getting workload from scan job labels set: %w", err)
 	}
 
-	containerImages, err := r.getContainerImagesFrom(scanJob)
+	containerImages, err := resources.GetContainerImagesFromJob(scanJob)
 	if err != nil {
-		return err
+		return fmt.Errorf("getting container images: %w", err)
 	}
 
-	hasVulnerabilityReports, err := r.hasVulnerabilityReports(ctx, workload, containerImages)
+	hasVulnerabilityReports, err := r.Store.HasVulnerabilityReports(ctx, workload, containerImages)
 	if err != nil {
 		return err
 	}
@@ -146,41 +146,6 @@ func (r *JobReconciler) GetPodControlledBy(ctx context.Context, job *batchv1.Job
 	return podList.Items[0].DeepCopy(), nil
 }
 
-func (r *JobReconciler) hasVulnerabilityReports(ctx context.Context, owner kube.Object, containerImages kube.ContainerImages) (bool, error) {
-	vulnerabilityReports, err := r.Store.Read(ctx, owner)
-	if err != nil {
-		return false, err
-	}
-
-	actual := map[string]bool{}
-	for containerName, _ := range vulnerabilityReports {
-		actual[containerName] = true
-	}
-
-	expected := map[string]bool{}
-	for containerName, _ := range containerImages {
-		expected[containerName] = true
-	}
-
-	return reflect.DeepEqual(actual, expected), nil
-}
-
-// TODO We have similar code in other places
-func (r *JobReconciler) getContainerImagesFrom(job *batchv1.Job) (kube.ContainerImages, error) {
-	var containerImagesAsJSON string
-	var ok bool
-
-	if containerImagesAsJSON, ok = job.Annotations[kube.AnnotationContainerImages]; !ok {
-		return nil, fmt.Errorf("scan job does not have required annotation: %s", kube.AnnotationContainerImages)
-	}
-	containerImages := kube.ContainerImages{}
-	err := containerImages.FromJSON(containerImagesAsJSON)
-	if err != nil {
-		return nil, fmt.Errorf("reading scan job annotation: %s: %w", kube.AnnotationContainerImages, err)
-	}
-	return containerImages, nil
-}
-
 func (r *JobReconciler) processFailedScanJob(ctx context.Context, scanJob *batchv1.Job) error {
 	pod, err := r.GetPodControlledBy(ctx, scanJob)
 	if err != nil {
@@ -194,7 +159,7 @@ func (r *JobReconciler) processFailedScanJob(ctx context.Context, scanJob *batch
 		r.Log.Error(nil, "Scan job container", "container", container, "status.reason", status.Reason, "status.message", status.Message)
 	}
 	r.Log.Info("Deleting failed scan job")
-	return r.Client.Delete(ctx, scanJob)
+	return r.Client.Delete(ctx, scanJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
 }
 
 func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
