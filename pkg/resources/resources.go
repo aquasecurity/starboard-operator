@@ -62,3 +62,13 @@ func GetImmediateOwnerReference(pod *corev1.Pod) kube.Object {
 		Name:      pod.Name,
 	}
 }
+
+func GetOwnerOf(owned metav1.Object) *metav1.OwnerReference {
+	refs := owned.GetOwnerReferences()
+	for i := range refs {
+		if refs[i].Controller == nil || (refs[i].Controller != nil && !*refs[i].Controller) {
+			return &refs[i]
+		}
+	}
+	return nil
+}

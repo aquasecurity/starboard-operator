@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+
 	"github.com/aquasecurity/starboard-operator/pkg/resources"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -51,6 +52,12 @@ func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	} else if err != nil {
 		return ctrl.Result{}, fmt.Errorf("getting job from cache: %w", err)
+	}
+
+	// Check if the Job is being deleted.
+	if job.DeletionTimestamp != nil {
+		log.V(1).Info("Ignoring Job that is being deleted")
+		return ctrl.Result{}, nil
 	}
 
 	if len(job.Status.Conditions) == 0 {
@@ -122,7 +129,7 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 	}
 
 	log.Info("Writing VulnerabilityReports", "owner", workload)
-	err = r.Store.Write(ctx, workload, vulnerabilityReports)
+	err = r.Store.WriteAll(ctx, workload, vulnerabilityReports)
 	if err != nil {
 		return fmt.Errorf("writing vulnerability reports: %w", err)
 	}

@@ -75,9 +75,9 @@ func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	// Check if the Pod is being terminated.
+	// Check if the Pod is being deleted.
 	if pod.DeletionTimestamp != nil {
-		log.V(1).Info("Ignoring Pod that is being terminated")
+		log.V(1).Info("Ignoring Pod that is being deleted")
 		return ctrl.Result{}, nil
 	}
 

@@ -60,7 +60,6 @@ func init() {
 }
 
 func main() {
-
 	if err := run(); err != nil {
 		setupLog.Error(err, "Unable to run manager")
 	}
@@ -169,6 +168,14 @@ func run() error {
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create job controller: %w", err)
+	}
+
+	if err = (&controllers.VulnerabilityReportReconciler{
+		Log:    ctrl.Log.WithName("controller").WithName("vulnerabilityreport"),
+		Client: mgr.GetClient(),
+		Store:  store,
+	}).SetupWithManager(mgr); err != nil {
+		return fmt.Errorf("unable to create vulnerabilityreport controller: %w", err)
 	}
 
 	setupLog.Info("Starting controllers manager")
