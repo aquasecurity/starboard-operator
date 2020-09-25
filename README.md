@@ -28,6 +28,8 @@ Configuration of the operator is done via environment variables at startup.
 | `OPERATOR_NAMESPACE`                    | N/A      | See [Install modes](#install-modes) |
 | `OPERATOR_TARGET_NAMESPACES`            | N/A      | See [Install modes](#install-modes) |
 | `OPERATOR_SCAN_JOB_TIMEOUT`             | `5m`     | The length of time to wait before giving up on a scan job |
+| `OPERATOR_METRICS_BIND_ADDRESS`         | `:8080`  | The TCP address to bind to for serving [Prometheus][prometheus] metrics. It can be set to `0` to disable the metrics serving. |
+| `OPERATOR_LOG_DEV_MODE`                 | `false`  | The flag to use (or not use) development mode (more human-readable output, extra stack traces and logging information, etc). |
 | `OPERATOR_SCANNER_TRIVY_ENABLED`        | `true`   | The flag to enable Trivy vulnerability scanner |
 | `OPERATOR_SCANNER_TRIVY_VERSION`        | `0.11.0` | The version of Trivy to be used |
 | `OPERATOR_SCANNER_AQUA_CSP_ENABLED`     | `false`  | The flag to enable Aqua CSP vulnerability scanner |
@@ -54,7 +56,7 @@ To configure the Aqua CSP scanner create the `starboard-operator` secret in the 
 
 ```
 $ kubectl create secret generic starboard-operator \
- --namespace operators \
+ --namespace $OPERATOR_NAMESPACE \
  --from-literal OPERATOR_SCANNER_AQUA_CSP_USERNAME=$AQUA_CONSOLE_USERNAME \
  --from-literal OPERATOR_SCANNER_AQUA_CSP_PASSWORD=$AQUA_CONSOLE_PASSWORD \
  --from-literal OPERATOR_SCANNER_AQUA_CSP_VERSION=$AQUA_VERSION \
@@ -85,3 +87,4 @@ Thanks for taking the time to join our community and start contributing!
 [docker-pulls]: https://img.shields.io/docker/pulls/aquasec/starboard-operator?logo=docker
 
 [starboard]: https://github.com/aquasecurity/starboard
+[prometheus]: https://github.com/prometheus

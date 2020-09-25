@@ -33,6 +33,8 @@ spec:
               value: "starboard-operator"
             - name: OPERATOR_TARGET_NAMESPACES
               value: "starboard-operator"
+            - name: OPERATOR_LOG_DEV_MODE
+              value: "false"
             - name: OPERATOR_SCANNER_TRIVY_ENABLED
               value: "true"
             - name: OPERATOR_SCANNER_TRIVY_VERSION

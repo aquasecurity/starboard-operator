@@ -3,7 +3,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-
 	"github.com/aquasecurity/starboard-operator/pkg/resources"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -38,24 +37,24 @@ type JobReconciler struct {
 
 func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("job", fmt.Sprintf("%s/%s", req.Namespace, req.Name))
+	log := r.Log.WithValues("job", req.NamespacedName)
 
 	if req.Namespace != r.Config.Namespace {
-		log.Info("Ignoring Job not managed by this operator")
+		log.V(1).Info("Ignoring Job not managed by this operator")
 		return ctrl.Result{}, nil
 	}
 
 	job := &batchv1.Job{}
 	err := r.Client.Get(ctx, req.NamespacedName, job)
 	if err != nil && errors.IsNotFound(err) {
-		log.Info("Ignoring Job that must have been deleted")
+		log.V(1).Info("Ignoring Job that must have been deleted")
 		return ctrl.Result{}, nil
 	} else if err != nil {
 		return ctrl.Result{}, fmt.Errorf("getting job from cache: %w", err)
 	}
 
 	if len(job.Status.Conditions) == 0 {
-		log.Info("Ignoring Job without status conditions")
+		log.V(1).Info("Ignoring Job without status conditions")
 		return ctrl.Result{}, nil
 	}
 
@@ -96,8 +95,9 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 	}
 
 	if hasVulnerabilityReports {
-		log.Info("Vulnerability reports already exist")
-		return r.Client.Delete(ctx, scanJob)
+		log.V(1).Info("VulnerabilityReports already exist", "owner", workload)
+		log.V(1).Info("Deleting scan job")
+		return r.Client.Delete(ctx, scanJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
 	}
 
 	pod, err := r.GetPodControlledBy(ctx, scanJob)
@@ -121,12 +121,12 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 		_ = logsReader.Close()
 	}
 
-	log.Info("Writing vulnerability reports", "workload", workload)
+	log.Info("Writing VulnerabilityReports", "owner", workload)
 	err = r.Store.Write(ctx, workload, vulnerabilityReports)
 	if err != nil {
 		return fmt.Errorf("writing vulnerability reports: %w", err)
 	}
-	log.Info("Deleting complete scan job")
+	log.V(1).Info("Deleting complete scan job")
 	return r.Client.Delete(ctx, scanJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
 }
 
@@ -158,7 +158,7 @@ func (r *JobReconciler) processFailedScanJob(ctx context.Context, scanJob *batch
 		}
 		r.Log.Error(nil, "Scan job container", "container", container, "status.reason", status.Reason, "status.message", status.Message)
 	}
-	r.Log.Info("Deleting failed scan job")
+	r.Log.V(1).Info("Deleting failed scan job")
 	return r.Client.Delete(ctx, scanJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
 }
 

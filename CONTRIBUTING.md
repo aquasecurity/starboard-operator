@@ -35,7 +35,6 @@ the operator in the same namespace as supervised workloads.
 1. Build Docker images:
 
    ```
-   $ export GOOS=linux
    $ make docker-build
    ```
 
@@ -57,8 +56,8 @@ the operator in the same namespace as supervised workloads.
 
    ```
    $ kubectl apply -f deploy/kubectl/01-starboard-operator.ns.yaml \
-       -f deploy/kubectl/02-starboard-operator.sa.yaml
-       -f deploy/kubectl/03-starboard-operator.role.yaml
+       -f deploy/kubectl/02-starboard-operator.sa.yaml \
+       -f deploy/kubectl/03-starboard-operator.role.yaml \
        -f deploy/kubectl/04-starboard-operator.rolebinding.yaml
    ```
 

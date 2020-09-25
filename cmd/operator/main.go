@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
 	"github.com/aquasecurity/starboard-operator/pkg/logs"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -27,8 +29,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -48,7 +49,7 @@ var (
 
 var (
 	scheme   = runtime.NewScheme()
-	setupLog = logf.Log.WithName("starboard-operator.main")
+	setupLog = log.Log.WithName("operator").WithName("main")
 )
 
 func init() {
@@ -59,7 +60,6 @@ func init() {
 }
 
 func main() {
-	logf.SetLogger(zap.New())
 
 	if err := run(); err != nil {
 		setupLog.Error(err, "Unable to run manager")
@@ -73,7 +73,9 @@ func run() error {
 		return fmt.Errorf("getting operator config: %w", err)
 	}
 
-	// Validate configured namespaces
+	log.SetLogger(zap.New(zap.UseDevMode(config.Operator.LogDevMode)))
+
+	// Validate configured namespaces to resolve install mode.
 	operatorNamespace, err := config.Operator.GetOperatorNamespace()
 	if err != nil {
 		return fmt.Errorf("getting operator namespace: %w", err)
@@ -85,13 +87,14 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("getting install mode: %w", err)
 	}
-	setupLog.Info("Resolving install mode", "installMode", installMode,
-		"operatorNamespace", operatorNamespace,
-		"targetNamespaces", targetNamespaces)
+	setupLog.Info("Resolving install mode", "install mode", installMode,
+		"operator namespace", operatorNamespace,
+		"target namespaces", targetNamespaces)
 
 	// Set the default manager options.
 	options := manager.Options{
-		Scheme: scheme,
+		Scheme:             scheme,
+		MetricsBindAddress: config.Operator.MetricsBindAddress,
 	}
 
 	switch installMode {
@@ -150,7 +153,7 @@ func run() error {
 		Client:  mgr.GetClient(),
 		Store:   store,
 		Scanner: scanner,
-		Log:     ctrl.Log.WithName("controller").WithName("Pod"),
+		Log:     ctrl.Log.WithName("controller").WithName("pod"),
 		Scheme:  mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create pod controller: %w", err)
@@ -162,7 +165,7 @@ func run() error {
 		Client:     mgr.GetClient(),
 		Store:      store,
 		Scanner:    scanner,
-		Log:        ctrl.Log.WithName("controller").WithName("Job"),
+		Log:        ctrl.Log.WithName("controller").WithName("job"),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create job controller: %w", err)
