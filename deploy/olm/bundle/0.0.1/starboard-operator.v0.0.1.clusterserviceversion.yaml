@@ -262,10 +262,17 @@ spec:
                   name: starboard-operator
               spec:
                 serviceAccountName: starboard-operator
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 10000
+                  fsGroup: 10000
                 containers:
                   - name: starboard-operator
                     image: aquasec/starboard-operator:0.0.1
                     imagePullPolicy: IfNotPresent
+                    securityContext:
+                      privileged: false
+                      readOnlyRootFilesystem: true
                     env:
                       - name: OPERATOR_NAMESPACE
                         valueFrom:
