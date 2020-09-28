@@ -133,17 +133,42 @@ func (r *PodController) ensureScanJob(ctx context.Context, owner kube.Object, po
 		return nil
 	}
 
-	scanJob, err := r.Scanner.NewScanJob(owner, pod.Spec, scanner.Options{
+	jobMeta, err := r.GetJobMetaFrom(owner, pod.Spec)
+	if err != nil {
+		return err
+	}
+
+	scanJob, err := r.Scanner.NewScanJob(jobMeta, scanner.Options{
 		Namespace:          r.Config.Namespace,
 		ServiceAccountName: r.Config.ServiceAccount,
 		ScanJobTimeout:     r.Config.ScanJobTimeout,
-	})
+	}, pod.Spec)
 	if err != nil {
 		return fmt.Errorf("constructing scan job: %w", err)
 	}
 	log.V(1).Info("Creating scan job",
 		"job", fmt.Sprintf("%s/%s", scanJob.Namespace, scanJob.Name))
 	return r.Client.Create(ctx, scanJob)
+}
+
+func (r *PodController) GetJobMetaFrom(owner kube.Object, spec corev1.PodSpec) (scanner.JobMeta, error) {
+	containerImages := resources.GetContainerImagesFromPodSpec(spec)
+	containerImagesAsJSON, err := containerImages.AsJSON()
+	if err != nil {
+		return scanner.JobMeta{}, err
+	}
+
+	return scanner.JobMeta{
+		Labels: map[string]string{
+			kube.LabelResourceKind:         string(owner.Kind),
+			kube.LabelResourceName:         owner.Name,
+			kube.LabelResourceNamespace:    owner.Namespace,
+			"app.kubernetes.io/managed-by": "starboard-operator",
+		},
+		Annotations: map[string]string{
+			kube.AnnotationContainerImages: containerImagesAsJSON,
+		},
+	}, nil
 }
 
 // IgnorePodInOperatorNamespace determines whether to reconcile the specified Pod

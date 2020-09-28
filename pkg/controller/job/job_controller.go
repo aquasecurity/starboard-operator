@@ -117,7 +117,7 @@ func (r *JobController) processCompleteScanJob(ctx context.Context, scanJob *bat
 		if err != nil {
 			return fmt.Errorf("getting logs for pod %s/%s: %w", pod.Namespace, pod.Name, err)
 		}
-		vulnerabilityReports[container.Name], err = r.Scanner.ParseVulnerabilityReport(containerImages[container.Name], logsReader)
+		vulnerabilityReports[container.Name], err = r.Scanner.ParseVulnerabilityScanResult(containerImages[container.Name], logsReader)
 		if err != nil {
 			return err
 		}
