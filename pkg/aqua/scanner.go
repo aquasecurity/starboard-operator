@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	"github.com/aquasecurity/starboard/pkg/scanners"
 
@@ -13,11 +15,9 @@ import (
 	"github.com/aquasecurity/starboard-operator/pkg/scanner"
 
 	"github.com/aquasecurity/starboard-operator/pkg/etc"
-	"github.com/aquasecurity/starboard/pkg/kube"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/utils/pointer"
 )
 
@@ -37,35 +37,21 @@ func NewScanner(version etc.VersionInfo, config etc.ScannerAquaCSP) scanner.Vuln
 	}
 }
 
-func (s *aquaScanner) NewScanJob(resource kube.Object, spec corev1.PodSpec, options scanner.Options) (*batchv1.Job, error) {
+func (s *aquaScanner) NewScanJob(meta scanner.JobMeta, options scanner.Options, spec corev1.PodSpec) (*batchv1.Job, error) {
 	jobName := uuid.New().String()
 	initContainerName := jobName
 
-	containerImages := kube.ContainerImages{}
 	scanJobContainers := make([]corev1.Container, len(spec.Containers))
 	for i, container := range spec.Containers {
-		containerImages[container.Name] = container.Image
 		scanJobContainers[i] = s.newScanJobContainer(container)
-	}
-
-	containerImagesAsJSON, err := containerImages.AsJSON()
-	if err != nil {
-		return nil, err
 	}
 
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobName,
-			Namespace: options.Namespace,
-			Labels: labels.Set{
-				kube.LabelResourceKind:         string(resource.Kind),
-				kube.LabelResourceName:         resource.Name,
-				kube.LabelResourceNamespace:    resource.Namespace,
-				"app.kubernetes.io/managed-by": "starboard-operator",
-			},
-			Annotations: map[string]string{
-				kube.AnnotationContainerImages: containerImagesAsJSON,
-			},
+			Name:        jobName,
+			Namespace:   options.Namespace,
+			Labels:      meta.Labels,
+			Annotations: meta.Annotations,
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit:          pointer.Int32Ptr(0),
@@ -73,12 +59,8 @@ func (s *aquaScanner) NewScanJob(resource kube.Object, spec corev1.PodSpec, opti
 			ActiveDeadlineSeconds: scanners.GetActiveDeadlineSeconds(options.ScanJobTimeout),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels.Set{
-						kube.LabelResourceKind:         string(resource.Kind),
-						kube.LabelResourceName:         resource.Name,
-						kube.LabelResourceNamespace:    resource.Namespace,
-						"app.kubernetes.io/managed-by": "starboard-operator",
-					},
+					Labels:      meta.Labels,
+					Annotations: meta.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy:                corev1.RestartPolicyNever,
@@ -172,6 +154,16 @@ func (s *aquaScanner) newScanJobContainer(podContainer corev1.Container) corev1.
 				},
 			},
 		},
+		Resources: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("100M"),
+			},
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("500m"),
+				corev1.ResourceMemory: resource.MustParse("500M"),
+			},
+		},
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      "scannercli",
@@ -186,7 +178,7 @@ func (s *aquaScanner) newScanJobContainer(podContainer corev1.Container) corev1.
 	}
 }
 
-func (s *aquaScanner) ParseVulnerabilityReport(_ string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityScanResult, error) {
+func (s *aquaScanner) ParseVulnerabilityScanResult(_ string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityScanResult, error) {
 	var report v1alpha1.VulnerabilityScanResult
 	err := json.NewDecoder(logsReader).Decode(&report)
 	return report, err

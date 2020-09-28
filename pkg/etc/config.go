@@ -30,8 +30,9 @@ type Operator struct {
 }
 
 type ScannerTrivy struct {
-	Enabled bool   `env:"OPERATOR_SCANNER_TRIVY_ENABLED" envDefault:"true"`
-	Version string `env:"OPERATOR_SCANNER_TRIVY_VERSION" envDefault:"0.11.0"`
+	Enabled  bool   `env:"OPERATOR_SCANNER_TRIVY_ENABLED" envDefault:"true"`
+	Version  string `env:"OPERATOR_SCANNER_TRIVY_VERSION" envDefault:"0.11.0"`
+	ImageRef string `env:"OPERATOR_SCANNER_TRIVY_IMAGE_REF" envDefault:"aquasec/trivy:0.11.0"`
 }
 
 type ScannerAquaCSP struct {

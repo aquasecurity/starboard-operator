@@ -62,7 +62,6 @@ func init() {
 }
 
 func main() {
-
 	if err := run(); err != nil {
 		setupLog.Error(err, "Unable to run manager")
 	}
@@ -188,7 +187,7 @@ func getEnabledScanner(config etc.Config) (scanner.VulnerabilityScanner, error) 
 	}
 	if config.ScannerTrivy.Enabled {
 		setupLog.Info("Using Trivy as vulnerability scanner", "version", config.ScannerTrivy.Version)
-		return trivy.NewScanner(), nil
+		return trivy.NewScanner(config.ScannerTrivy), nil
 	}
 	if config.ScannerAquaCSP.Enabled {
 		setupLog.Info("Using Aqua CSP as vulnerability scanner", "version", config.ScannerAquaCSP.Version)

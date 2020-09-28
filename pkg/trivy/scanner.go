@@ -2,6 +2,7 @@ package trivy
 
 import (
 	"fmt"
+	"github.com/aquasecurity/starboard-operator/pkg/etc"
 	"io"
 
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities/trivy"
@@ -10,7 +11,6 @@ import (
 	"github.com/aquasecurity/starboard/pkg/scanners"
 
 	"github.com/aquasecurity/starboard-operator/pkg/scanner"
-	"github.com/aquasecurity/starboard/pkg/kube"
 	"github.com/google/uuid"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -19,18 +19,17 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-const (
-	trivyImageRef = "aquasec/trivy:0.11.0"
-)
-
-func NewScanner() scanner.VulnerabilityScanner {
-	return &trivyScanner{}
-}
-
 type trivyScanner struct {
+	config etc.ScannerTrivy
 }
 
-func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, options scanner.Options) (*batchv1.Job, error) {
+func NewScanner(config etc.ScannerTrivy) scanner.VulnerabilityScanner {
+	return &trivyScanner{
+		config: config,
+	}
+}
+
+func (s *trivyScanner) NewScanJob(meta scanner.JobMeta, options scanner.Options, spec corev1.PodSpec) (*batchv1.Job, error) {
 	jobName := fmt.Sprintf(uuid.New().String())
 
 	initContainerName := jobName
@@ -38,7 +37,7 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 	initContainers := []corev1.Container{
 		{
 			Name:                     initContainerName,
-			Image:                    trivyImageRef,
+			Image:                    s.config.ImageRef,
 			ImagePullPolicy:          corev1.PullIfNotPresent,
 			TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 			Command: []string{
@@ -59,17 +58,13 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 		},
 	}
 
-	containerImages := kube.ContainerImages{}
-
 	scanJobContainers := make([]corev1.Container, len(spec.Containers))
 	for i, c := range spec.Containers {
-		containerImages[c.Name] = c.Image
-
 		var envs []corev1.EnvVar
 
 		scanJobContainers[i] = corev1.Container{
 			Name:                     c.Name,
-			Image:                    trivyImageRef,
+			Image:                    s.config.ImageRef,
 			ImagePullPolicy:          corev1.PullIfNotPresent,
 			TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 			Env:                      envs,
@@ -86,13 +81,13 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 				c.Image,
 			},
 			Resources: corev1.ResourceRequirements{
-				Limits: corev1.ResourceList{
-					corev1.ResourceCPU:    resource.MustParse("500m"),
-					corev1.ResourceMemory: resource.MustParse("500M"),
-				},
 				Requests: corev1.ResourceList{
 					corev1.ResourceCPU:    resource.MustParse("100m"),
 					corev1.ResourceMemory: resource.MustParse("100M"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    resource.MustParse("500m"),
+					corev1.ResourceMemory: resource.MustParse("500M"),
 				},
 			},
 			VolumeMounts: []corev1.VolumeMount{
@@ -105,24 +100,12 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 		}
 	}
 
-	containerImagesAsJSON, err := containerImages.AsJSON()
-	if err != nil {
-		return nil, err
-	}
-
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      jobName,
-			Namespace: options.Namespace,
-			Labels: map[string]string{
-				kube.LabelResourceKind:         string(workload.Kind),
-				kube.LabelResourceName:         workload.Name,
-				kube.LabelResourceNamespace:    workload.Namespace,
-				"app.kubernetes.io/managed-by": "starboard-operator",
-			},
-			Annotations: map[string]string{
-				kube.AnnotationContainerImages: containerImagesAsJSON,
-			},
+			Name:        jobName,
+			Namespace:   options.Namespace,
+			Labels:      meta.Labels,
+			Annotations: meta.Annotations,
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit:          pointer.Int32Ptr(0),
@@ -130,12 +113,8 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 			ActiveDeadlineSeconds: scanners.GetActiveDeadlineSeconds(options.ScanJobTimeout),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						kube.LabelResourceKind:         string(workload.Kind),
-						kube.LabelResourceName:         workload.Name,
-						kube.LabelResourceNamespace:    workload.Namespace,
-						"app.kubernetes.io/managed-by": "starboard-operator",
-					},
+					Labels:      meta.Labels,
+					Annotations: meta.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy:                corev1.RestartPolicyNever,
@@ -159,6 +138,12 @@ func (s *trivyScanner) NewScanJob(workload kube.Object, spec corev1.PodSpec, opt
 	}, nil
 }
 
-func (s *trivyScanner) ParseVulnerabilityReport(imageRef string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityScanResult, error) {
-	return trivy.DefaultConverter.Convert(imageRef, logsReader)
+func (s *trivyScanner) ParseVulnerabilityScanResult(imageRef string, logsReader io.ReadCloser) (v1alpha1.VulnerabilityScanResult, error) {
+	result, err := trivy.DefaultConverter.Convert(imageRef, logsReader)
+	if err != nil {
+		return v1alpha1.VulnerabilityScanResult{}, err
+	}
+	// TODO The Default converter has hardcoded version to 0.9.2
+	result.Scanner.Version = s.config.Version
+	return result, nil
 }
