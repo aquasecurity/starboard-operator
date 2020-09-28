@@ -1,4 +1,4 @@
-package controllers
+package pod
 
 import (
 	"context"
@@ -14,7 +14,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 
 	"github.com/aquasecurity/starboard/pkg/kube"
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -22,12 +21,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type PodReconciler struct {
+var (
+	log = ctrl.Log.WithName("controller").WithName("pod")
+)
+
+type PodController struct {
 	Config  etc.Operator
 	Client  client.Client
 	Store   reports.StoreInterface
 	Scanner scanner.VulnerabilityScanner
-	Log     logr.Logger
 	Scheme  *runtime.Scheme
 }
 
@@ -43,12 +45,12 @@ type PodReconciler struct {
 //
 // The Reconcile function returns two object which indicate whether or not Kubernetes
 // should requeue the request.
-func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *PodController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 
 	pod := &corev1.Pod{}
 
-	log := r.Log.WithValues("pod", req.NamespacedName)
+	log := log.WithValues("pod", req.NamespacedName)
 
 	installMode, err := r.Config.GetInstallMode()
 	if err != nil {
@@ -110,8 +112,8 @@ func (r *PodReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
-func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, pod *corev1.Pod) error {
-	log := r.Log.WithValues("pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name))
+func (r *PodController) ensureScanJob(ctx context.Context, owner kube.Object, pod *corev1.Pod) error {
+	log := log.WithValues("pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name))
 
 	log.V(1).Info("Ensuring scan Job")
 
@@ -158,7 +160,7 @@ func (r *PodReconciler) ensureScanJob(ctx context.Context, owner kube.Object, po
 // However, we do not want to scan the workloads that might run in the
 // operator namespace unless the operator namespace is added to the list
 // of target namespaces.
-func (r *PodReconciler) IgnorePodInOperatorNamespace(installMode etc.InstallMode, pod types.NamespacedName) bool {
+func (r *PodController) IgnorePodInOperatorNamespace(installMode etc.InstallMode, pod types.NamespacedName) bool {
 	if installMode == etc.InstallModeSingleNamespace &&
 		pod.Namespace == r.Config.Namespace {
 		return true
@@ -183,7 +185,7 @@ func IsPodManagedByStarboardOperator(pod *corev1.Pod) bool {
 	return exists && managedBy == "starboard-operator"
 }
 
-func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *PodController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		Complete(r)

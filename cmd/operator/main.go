@@ -4,6 +4,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/aquasecurity/starboard-operator/pkg/controller/job"
+	"github.com/aquasecurity/starboard-operator/pkg/controller/pod"
+
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/aquasecurity/starboard-operator/pkg/logs"
@@ -20,7 +23,6 @@ import (
 
 	"github.com/aquasecurity/starboard-operator/pkg/reports"
 
-	"github.com/aquasecurity/starboard-operator/pkg/controllers"
 	"github.com/aquasecurity/starboard-operator/pkg/etc"
 	starboardv1alpha1 "github.com/aquasecurity/starboard/pkg/apis/aquasecurity/v1alpha1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -49,7 +51,7 @@ var (
 
 var (
 	scheme   = runtime.NewScheme()
-	setupLog = log.Log.WithName("operator").WithName("main")
+	setupLog = log.Log.WithName("main")
 )
 
 func init() {
@@ -148,24 +150,22 @@ func run() error {
 
 	store := reports.NewStore(mgr.GetClient(), scheme)
 
-	if err = (&controllers.PodReconciler{
+	if err = (&pod.PodController{
 		Config:  config.Operator,
 		Client:  mgr.GetClient(),
 		Store:   store,
 		Scanner: scanner,
-		Log:     ctrl.Log.WithName("controller").WithName("pod"),
 		Scheme:  mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create pod controller: %w", err)
 	}
 
-	if err = (&controllers.JobReconciler{
+	if err = (&job.JobController{
 		Config:     config.Operator,
 		LogsReader: logs.NewReader(kubernetesClientset),
 		Client:     mgr.GetClient(),
 		Store:      store,
 		Scanner:    scanner,
-		Log:        ctrl.Log.WithName("controller").WithName("job"),
 		Scheme:     mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		return fmt.Errorf("unable to create job controller: %w", err)
