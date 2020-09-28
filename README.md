@@ -23,18 +23,19 @@ a Kubernetes cluster - for example, initiating a vulnerability scan when a new p
 
 Configuration of the operator is done via environment variables at startup.
 
-| NAME                                    | DEFAULT  | DESCRIPTION |
-| --------------------------------------- | -------- | ----------- |
-| `OPERATOR_NAMESPACE`                    | N/A      | See [Install modes](#install-modes) |
-| `OPERATOR_TARGET_NAMESPACES`            | N/A      | See [Install modes](#install-modes) |
-| `OPERATOR_LOG_DEV_MODE`                 | `false`  | The flag to use (or not use) development mode (more human-readable output, extra stack traces and logging information, etc). |
-| `OPERATOR_SCANNER_TRIVY_ENABLED`        | `true`   | The flag to enable Trivy vulnerability scanner |
-| `OPERATOR_SCANNER_TRIVY_VERSION`        | `0.11.0` | The version of Trivy to be used |
-| `OPERATOR_SCANNER_TRIVY_IMAGE_REF`      | `aquasec/trivy:0.11.0` | The Docker image of Trivy to be used |
-| `OPERATOR_SCANNER_AQUA_CSP_ENABLED`     | `false`  | The flag to enable Aqua CSP vulnerability scanner |
-| `OPERATOR_SCANNER_AQUA_CSP_VERSION`     | `5.0`    | The version of Aqua CSP scannercli container image to be used |
-| `OPERATOR_SCAN_JOB_TIMEOUT`             | `5m`     | The length of time to wait before giving up on a scan job |
-| `OPERATOR_METRICS_BIND_ADDRESS`         | `:8080`  | The TCP address to bind to for serving [Prometheus][prometheus] metrics. It can be set to `0` to disable the metrics serving. |
+| NAME                                | DEFAULT                | DESCRIPTION |
+| ----------------------------------- | ---------------------- | ----------- |
+| `OPERATOR_NAMESPACE`                | N/A                    | See [Install modes](#install-modes) |
+| `OPERATOR_TARGET_NAMESPACES`        | N/A                    | See [Install modes](#install-modes) |
+| `OPERATOR_LOG_DEV_MODE`             | `false`                | The flag to use (or not use) development mode (more human-readable output, extra stack traces and logging information, etc). |
+| `OPERATOR_SCANNER_TRIVY_ENABLED`    | `true`                 | The flag to enable Trivy vulnerability scanner |
+| `OPERATOR_SCANNER_TRIVY_VERSION`    | `0.11.0`               | The version of Trivy to be used |
+| `OPERATOR_SCANNER_TRIVY_IMAGE`      | `aquasec/trivy:0.11.0` | The Docker image of Trivy to be used |
+| `OPERATOR_SCANNER_AQUA_CSP_ENABLED` | `false`                | The flag to enable Aqua CSP vulnerability scanner |
+| `OPERATOR_SCANNER_AQUA_CSP_VERSION` | `5.0`                  | The version of Aqua CSP scanner to be used |
+| `OPERATOR_SCANNER_AQUA_CSP_IMAGE`   | `aquasec/scanner:5.0`  | The Docker image of Aqua CSP scanner to be used |
+| `OPERATOR_SCAN_JOB_TIMEOUT`         | `5m`                   | The length of time to wait before giving up on a scan job |
+| `OPERATOR_METRICS_BIND_ADDRESS`     | `:8080`                | The TCP address to bind to for serving [Prometheus][prometheus] metrics. It can be set to `0` to disable the metrics serving. |
 
 ## Install modes
 

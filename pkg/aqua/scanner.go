@@ -86,7 +86,7 @@ func (s *aquaScanner) NewScanJob(meta scanner.JobMeta, options scanner.Options, 
 					InitContainers: []corev1.Container{
 						{
 							Name:  initContainerName,
-							Image: fmt.Sprintf("aquasec/scanner:%s", s.config.Version),
+							Image: s.config.ImageRef,
 							Command: []string{
 								"cp",
 								"/opt/aquasec/scannercli",
