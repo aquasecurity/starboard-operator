@@ -32,12 +32,13 @@ type Operator struct {
 type ScannerTrivy struct {
 	Enabled  bool   `env:"OPERATOR_SCANNER_TRIVY_ENABLED" envDefault:"true"`
 	Version  string `env:"OPERATOR_SCANNER_TRIVY_VERSION" envDefault:"0.11.0"`
-	ImageRef string `env:"OPERATOR_SCANNER_TRIVY_IMAGE_REF" envDefault:"aquasec/trivy:0.11.0"`
+	ImageRef string `env:"OPERATOR_SCANNER_TRIVY_IMAGE" envDefault:"aquasec/trivy:0.11.0"`
 }
 
 type ScannerAquaCSP struct {
 	Enabled  bool   `env:"OPERATOR_SCANNER_AQUA_CSP_ENABLED" envDefault:"false"`
 	Version  string `env:"OPERATOR_SCANNER_AQUA_CSP_VERSION" envDefault:"5.0"`
+	ImageRef string `env:"OPERATOR_SCANNER_AQUA_CSP_IMAGE" envDefault:"aquasec/scanner:5.0"`
 	Host     string `env:"OPERATOR_SCANNER_AQUA_CSP_HOST"`
 	Username string `env:"OPERATOR_SCANNER_AQUA_CSP_USERNAME"`
 	Password string `env:"OPERATOR_SCANNER_AQUA_CSP_PASSWORD"`

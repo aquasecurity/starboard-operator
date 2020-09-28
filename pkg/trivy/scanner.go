@@ -2,8 +2,9 @@ package trivy
 
 import (
 	"fmt"
-	"github.com/aquasecurity/starboard-operator/pkg/etc"
 	"io"
+
+	"github.com/aquasecurity/starboard-operator/pkg/etc"
 
 	"github.com/aquasecurity/starboard/pkg/find/vulnerabilities/trivy"
 
