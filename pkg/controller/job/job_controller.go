@@ -1,8 +1,9 @@
-package controllers
+package job
 
 import (
 	"context"
 	"fmt"
+
 	"github.com/aquasecurity/starboard-operator/pkg/resources"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -19,25 +20,27 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-type JobReconciler struct {
+var (
+	log = ctrl.Log.WithName("controller").WithName("job")
+)
+
+type JobController struct {
 	Config     etc.Operator
 	Client     client.Client
 	LogsReader *logs.Reader
-	Log        logr.Logger
 	Scheme     *runtime.Scheme
 	Scanner    scanner.VulnerabilityScanner
 	Store      reports.StoreInterface
 }
 
-func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
+func (r *JobController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
-	log := r.Log.WithValues("job", req.NamespacedName)
+	log := log.WithValues("job", req.NamespacedName)
 
 	if req.Namespace != r.Config.Namespace {
 		log.V(1).Info("Ignoring Job not managed by this operator")
@@ -77,8 +80,8 @@ func (r *JobReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
-func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *batchv1.Job) error {
-	log := r.Log.WithValues("job", fmt.Sprintf("%s/%s", scanJob.Namespace, scanJob.Name))
+func (r *JobController) processCompleteScanJob(ctx context.Context, scanJob *batchv1.Job) error {
+	log := log.WithValues("job", fmt.Sprintf("%s/%s", scanJob.Namespace, scanJob.Name))
 	workload, err := kube.ObjectFromLabelsSet(scanJob.Labels)
 	if err != nil {
 		return fmt.Errorf("getting workload from scan job labels set: %w", err)
@@ -130,7 +133,7 @@ func (r *JobReconciler) processCompleteScanJob(ctx context.Context, scanJob *bat
 	return r.Client.Delete(ctx, scanJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
 }
 
-func (r *JobReconciler) GetPodControlledBy(ctx context.Context, job *batchv1.Job) (*corev1.Pod, error) {
+func (r *JobController) GetPodControlledBy(ctx context.Context, job *batchv1.Job) (*corev1.Pod, error) {
 	controllerUID, ok := job.Spec.Selector.MatchLabels["controller-uid"]
 	if !ok {
 		return nil, fmt.Errorf("controller-uid not found for job %s/%s", job.Namespace, job.Name)
@@ -146,7 +149,9 @@ func (r *JobReconciler) GetPodControlledBy(ctx context.Context, job *batchv1.Job
 	return podList.Items[0].DeepCopy(), nil
 }
 
-func (r *JobReconciler) processFailedScanJob(ctx context.Context, scanJob *batchv1.Job) error {
+func (r *JobController) processFailedScanJob(ctx context.Context, scanJob *batchv1.Job) error {
+	log := log.WithValues("job", fmt.Sprintf("%s/%s", scanJob.Namespace, scanJob.Name))
+
 	pod, err := r.GetPodControlledBy(ctx, scanJob)
 	if err != nil {
 		return err
@@ -156,13 +161,13 @@ func (r *JobReconciler) processFailedScanJob(ctx context.Context, scanJob *batch
 		if status.ExitCode == 0 {
 			continue
 		}
-		r.Log.Error(nil, "Scan job container", "container", container, "status.reason", status.Reason, "status.message", status.Message)
+		log.Error(nil, "Scan job container", "container", container, "status.reason", status.Reason, "status.message", status.Message)
 	}
-	r.Log.V(1).Info("Deleting failed scan job")
+	log.V(1).Info("Deleting failed scan job")
 	return r.Client.Delete(ctx, scanJob, client.PropagationPolicy(metav1.DeletePropagationBackground))
 }
 
-func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *JobController) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&batchv1.Job{}).
 		Complete(r)
