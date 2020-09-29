@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aquasecurity/starboard-operator/pkg/controller"
+
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/aquasecurity/starboard-operator/pkg/resources"
@@ -71,7 +73,7 @@ func (r *PodController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, fmt.Errorf("getting pod from cache: %w", err)
 	}
 
-	// Check if the Pod is managed by the operator, i.e. is controlled by a scan Job created by the PodReconciler.
+	// Check if the Pod is managed by the operator, i.e. is controlled by a scan Job created by the PodController.
 	if IsPodManagedByStarboardOperator(pod) {
 		log.V(1).Info("Ignoring Pod managed by this operator")
 		return ctrl.Result{}, nil
@@ -92,8 +94,10 @@ func (r *PodController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	owner := resources.GetImmediateOwnerReference(pod)
 	log.V(1).Info("Resolving immediate Pod owner", "owner", owner)
 
+	hash := controller.ComputeHash(pod.Spec)
+
 	// Check if containers of the Pod have corresponding VulnerabilityReports.
-	hasVulnerabilityReports, err := r.Store.HasVulnerabilityReports(ctx, owner, resources.GetContainerImagesFromPodSpec(pod.Spec))
+	hasVulnerabilityReports, err := r.Store.HasVulnerabilityReports(ctx, owner, hash, resources.GetContainerImagesFromPodSpec(pod.Spec))
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("getting vulnerability reports: %w", err)
 	}
@@ -104,7 +108,7 @@ func (r *PodController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	// Create a scan Job to create VulnerabilityReports for the Pod containers images.
-	err = r.ensureScanJob(ctx, owner, pod)
+	err = r.ensureScanJob(ctx, owner, hash, pod)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("ensuring scan job: %w", err)
 	}
@@ -112,8 +116,8 @@ func (r *PodController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil
 }
 
-func (r *PodController) ensureScanJob(ctx context.Context, owner kube.Object, pod *corev1.Pod) error {
-	log := log.WithValues("pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name))
+func (r *PodController) ensureScanJob(ctx context.Context, owner kube.Object, hash string, pod *corev1.Pod) error {
+	log := log.WithValues("pod", fmt.Sprintf("%s/%s", pod.Namespace, pod.Name), "hash", hash)
 
 	log.V(1).Info("Ensuring scan Job")
 
@@ -122,6 +126,7 @@ func (r *PodController) ensureScanJob(ctx context.Context, owner kube.Object, po
 		kube.LabelResourceNamespace: pod.Namespace,
 		kube.LabelResourceKind:      string(owner.Kind),
 		kube.LabelResourceName:      owner.Name,
+		etc.LabelPodSpecHash:        hash,
 	}, client.InNamespace(r.Config.Namespace))
 	if err != nil {
 		return fmt.Errorf("listing jos: %w", err)
@@ -133,7 +138,7 @@ func (r *PodController) ensureScanJob(ctx context.Context, owner kube.Object, po
 		return nil
 	}
 
-	jobMeta, err := r.GetJobMetaFrom(owner, pod.Spec)
+	jobMeta, err := r.GetJobMetaFrom(owner, hash, pod.Spec)
 	if err != nil {
 		return err
 	}
@@ -151,7 +156,7 @@ func (r *PodController) ensureScanJob(ctx context.Context, owner kube.Object, po
 	return r.Client.Create(ctx, scanJob)
 }
 
-func (r *PodController) GetJobMetaFrom(owner kube.Object, spec corev1.PodSpec) (scanner.JobMeta, error) {
+func (r *PodController) GetJobMetaFrom(owner kube.Object, hash string, spec corev1.PodSpec) (scanner.JobMeta, error) {
 	containerImages := resources.GetContainerImagesFromPodSpec(spec)
 	containerImagesAsJSON, err := containerImages.AsJSON()
 	if err != nil {
@@ -164,6 +169,7 @@ func (r *PodController) GetJobMetaFrom(owner kube.Object, spec corev1.PodSpec) (
 			kube.LabelResourceName:         owner.Name,
 			kube.LabelResourceNamespace:    owner.Namespace,
 			"app.kubernetes.io/managed-by": "starboard-operator",
+			etc.LabelPodSpecHash:           hash,
 		},
 		Annotations: map[string]string{
 			kube.AnnotationContainerImages: containerImagesAsJSON,
