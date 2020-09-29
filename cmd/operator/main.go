@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/aquasecurity/starboard-operator/pkg/controller/job"
 	"github.com/aquasecurity/starboard-operator/pkg/controller/pod"
@@ -94,8 +95,9 @@ func run() error {
 
 	// Set the default manager options.
 	options := manager.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: config.Operator.MetricsBindAddress,
+		Scheme:                 scheme,
+		MetricsBindAddress:     config.Operator.MetricsBindAddress,
+		HealthProbeBindAddress: config.Operator.HealthProbeBindAddress,
 	}
 
 	switch installMode {
@@ -140,6 +142,16 @@ func run() error {
 	mgr, err := ctrl.NewManager(kubernetesConfig, options)
 	if err != nil {
 		return fmt.Errorf("constructing controllers manager: %w", err)
+	}
+
+	err = mgr.AddReadyzCheck("ping", healthz.Ping)
+	if err != nil {
+		return err
+	}
+
+	err = mgr.AddHealthzCheck("ping", healthz.Ping)
+	if err != nil {
+		return err
 	}
 
 	scanner, err := getEnabledScanner(config)

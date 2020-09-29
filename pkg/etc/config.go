@@ -21,12 +21,13 @@ type Config struct {
 }
 
 type Operator struct {
-	Namespace          string        `env:"OPERATOR_NAMESPACE"`
-	TargetNamespaces   string        `env:"OPERATOR_TARGET_NAMESPACES"`
-	ServiceAccount     string        `env:"OPERATOR_SERVICE_ACCOUNT" envDefault:"starboard-operator"`
-	ScanJobTimeout     time.Duration `env:"OPERATOR_SCAN_JOB_TIMEOUT" envDefault:"5m"`
-	MetricsBindAddress string        `env:"OPERATOR_METRICS_BIND_ADDRESS" envDefault:":8080"`
-	LogDevMode         bool          `env:"OPERATOR_LOG_DEV_MODE" envDefault:"false"`
+	Namespace              string        `env:"OPERATOR_NAMESPACE"`
+	TargetNamespaces       string        `env:"OPERATOR_TARGET_NAMESPACES"`
+	ServiceAccount         string        `env:"OPERATOR_SERVICE_ACCOUNT" envDefault:"starboard-operator"`
+	ScanJobTimeout         time.Duration `env:"OPERATOR_SCAN_JOB_TIMEOUT" envDefault:"5m"`
+	MetricsBindAddress     string        `env:"OPERATOR_METRICS_BIND_ADDRESS" envDefault:":8080"`
+	HealthProbeBindAddress string        `env:"OPERATOR_HEALTH_PROBE_BIND_ADDRESS" envDefault:":9090"`
+	LogDevMode             bool          `env:"OPERATOR_LOG_DEV_MODE" envDefault:"false"`
 }
 
 type ScannerTrivy struct {

@@ -138,6 +138,8 @@ the operator in the same namespace as supervised workloads.
    $ operator-courier push "$BUNDLE_SRC_DIR" "$QUAY_NAMESPACE" \
      "$PACKAGE_NAME" "$PACKAGE_VERSION" "$QUAY_TOKEN"
    ```
+4. Navigate to https://quay.io/application/$QUAY_USERNAME/starboard-operator?tab=settings and make the published
+   bundle public by clicking the **Make Public** button.
 
 ### Create ClusterServiceVersion
 
