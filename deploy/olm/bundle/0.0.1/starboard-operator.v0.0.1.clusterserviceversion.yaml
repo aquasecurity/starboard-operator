@@ -262,6 +262,7 @@ spec:
                   name: starboard-operator
               spec:
                 serviceAccountName: starboard-operator
+                automountServiceAccountToken: true
                 securityContext:
                   runAsNonRoot: true
                   runAsUser: 10000
@@ -273,6 +274,10 @@ spec:
                     securityContext:
                       privileged: false
                       readOnlyRootFilesystem: true
+                      allowPrivilegeEscalation: false
+                      capabilities:
+                        drop:
+                          - ALL
                     env:
                       - name: OPERATOR_NAMESPACE
                         valueFrom:
@@ -283,8 +288,26 @@ spec:
                           fieldRef:
                             fieldPath: metadata.annotations['olm.targetNamespaces']
                     ports:
-                      - containerPort: 8080
-                        name: metrics
+                      - name: metrics
+                        containerPort: 8080
+                      - name: probes
+                        containerPort: 9090
+                    readinessProbe:
+                      httpGet:
+                        path: /readyz/
+                        port: probes
+                      initialDelaySeconds: 5
+                      periodSeconds: 10
+                      successThreshold: 1
+                      failureThreshold: 3
+                    livenessProbe:
+                      httpGet:
+                        path: /healthz/
+                        port: probes
+                      initialDelaySeconds: 5
+                      periodSeconds: 10
+                      successThreshold: 1
+                      failureThreshold: 10
   customresourcedefinitions:
     owned:
       - kind: VulnerabilityReport

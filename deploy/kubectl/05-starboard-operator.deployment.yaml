@@ -17,6 +17,7 @@ spec:
         app: starboard-operator
     spec:
       serviceAccountName: starboard-operator
+      automountServiceAccountToken: true
       securityContext:
         runAsNonRoot: true
         runAsUser: 10000
@@ -28,13 +29,15 @@ spec:
           securityContext:
             privileged: false
             readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: OPERATOR_NAMESPACE
               value: "starboard-operator"
             - name: OPERATOR_TARGET_NAMESPACES
               value: "starboard-operator"
-            - name: OPERATOR_LOG_DEV_MODE
-              value: "false"
             - name: OPERATOR_SCANNER_TRIVY_ENABLED
               value: "true"
             - name: OPERATOR_SCANNER_TRIVY_VERSION
@@ -65,3 +68,30 @@ spec:
                   name: starboard-operator
                   key: OPERATOR_SCANNER_AQUA_CSP_PASSWORD
                   optional: true
+            - name: OPERATOR_METRICS_BIND_ADDRESS
+              value: ":8080"
+            - name: OPERATOR_HEALTH_PROBE_BIND_ADDRESS
+              value: ":9090"
+            - name: OPERATOR_LOG_DEV_MODE
+              value: "false"
+          ports:
+            - name: metrics
+              containerPort: 8080
+            - name: probes
+              containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /readyz/
+              port: probes
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz/
+              port: probes
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 10
