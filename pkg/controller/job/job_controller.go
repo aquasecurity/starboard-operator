@@ -49,10 +49,11 @@ func (r *JobController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	job := &batchv1.Job{}
 	err := r.Client.Get(ctx, req.NamespacedName, job)
-	if err != nil && errors.IsNotFound(err) {
-		log.V(1).Info("Ignoring Job that must have been deleted")
-		return ctrl.Result{}, nil
-	} else if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.V(1).Info("Ignoring Job that must have been deleted")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, fmt.Errorf("getting job from cache: %w", err)
 	}
 
