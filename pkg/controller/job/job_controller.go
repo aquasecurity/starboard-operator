@@ -63,15 +63,14 @@ func (r *JobController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	switch jobCondition := job.Status.Conditions[0].Type; jobCondition {
 	case batchv1.JobComplete:
-		err := r.processCompleteScanJob(ctx, job)
-		return ctrl.Result{}, err
+		err = r.processCompleteScanJob(ctx, job)
 	case batchv1.JobFailed:
-		err := r.processFailedScanJob(ctx, job)
-		return ctrl.Result{}, err
+		err = r.processFailedScanJob(ctx, job)
 	default:
-		log.Error(nil, "Unrecognized scan job condition", "condition", jobCondition)
-		return ctrl.Result{}, nil
+		err = fmt.Errorf("unrecognized scan job condition: %v", jobCondition)
 	}
+
+	return ctrl.Result{}, err
 }
 
 func (r *JobController) processCompleteScanJob(ctx context.Context, scanJob *batchv1.Job) error {
