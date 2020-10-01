@@ -78,7 +78,10 @@ the operator in the same namespace as supervised workloads.
 1. Run the main method of the operator program:
 
    ```
-   $ go run cmd/operator/main.go
+   $ OPERATOR_NAMESPACE=starboard-operator \
+     OPERATOR_TARGET_NAMESPACES=starboard-operator \
+     OPERATOR_LOG_DEV_MODE=true \
+     go run cmd/operator/main.go
    ```
 
 ### Enable Aqua CSP scanner

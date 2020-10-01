@@ -6,7 +6,7 @@ require (
 	github.com/aquasecurity/starboard v0.4.1-0.20200923101908-ca60574a118f
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/caarlos0/env/v6 v6.2.2
-	github.com/go-logr/logr v0.1.0
+	github.com/davecgh/go-spew v1.1.1
 	github.com/google/go-containerregistry v0.1.1
 	github.com/google/uuid v1.1.1
 	github.com/onsi/ginkgo v1.14.0

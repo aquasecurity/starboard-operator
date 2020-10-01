@@ -8,6 +8,10 @@ import (
 	"github.com/caarlos0/env/v6"
 )
 
+const (
+	LabelPodSpecHash = "pod-spec-hash"
+)
+
 type VersionInfo struct {
 	Version string
 	Commit  string

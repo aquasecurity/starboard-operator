@@ -249,6 +249,7 @@ spec:
                 - list
                 - watch
                 - create
+                - update
       deployments:
         - name: starboard-operator
           spec:

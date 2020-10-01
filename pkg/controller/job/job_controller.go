@@ -49,10 +49,11 @@ func (r *JobController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	job := &batchv1.Job{}
 	err := r.Client.Get(ctx, req.NamespacedName, job)
-	if err != nil && errors.IsNotFound(err) {
-		log.V(1).Info("Ignoring Job that must have been deleted")
-		return ctrl.Result{}, nil
-	} else if err != nil {
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.V(1).Info("Ignoring Job that must have been deleted")
+			return ctrl.Result{}, nil
+		}
 		return ctrl.Result{}, fmt.Errorf("getting job from cache: %w", err)
 	}
 
@@ -63,21 +64,14 @@ func (r *JobController) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	switch jobCondition := job.Status.Conditions[0].Type; jobCondition {
 	case batchv1.JobComplete:
-		err := r.processCompleteScanJob(ctx, job)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+		err = r.processCompleteScanJob(ctx, job)
 	case batchv1.JobFailed:
-		err := r.processFailedScanJob(ctx, job)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+		err = r.processFailedScanJob(ctx, job)
 	default:
-		log.Info("Unrecognized scan job condition", "condition", jobCondition)
-		return ctrl.Result{}, nil
+		err = fmt.Errorf("unrecognized scan job condition: %v", jobCondition)
 	}
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, err
 }
 
 func (r *JobController) processCompleteScanJob(ctx context.Context, scanJob *batchv1.Job) error {
@@ -92,7 +86,12 @@ func (r *JobController) processCompleteScanJob(ctx context.Context, scanJob *bat
 		return fmt.Errorf("getting container images: %w", err)
 	}
 
-	hasVulnerabilityReports, err := r.Store.HasVulnerabilityReports(ctx, workload, containerImages)
+	hash, ok := scanJob.Labels[etc.LabelPodSpecHash]
+	if !ok {
+		return fmt.Errorf("expected label %s not set", etc.LabelPodSpecHash)
+	}
+
+	hasVulnerabilityReports, err := r.Store.HasVulnerabilityReports(ctx, workload, hash, containerImages)
 	if err != nil {
 		return err
 	}
@@ -125,7 +124,7 @@ func (r *JobController) processCompleteScanJob(ctx context.Context, scanJob *bat
 	}
 
 	log.Info("Writing VulnerabilityReports", "owner", workload)
-	err = r.Store.Write(ctx, workload, vulnerabilityReports)
+	err = r.Store.SaveVulnerabilityReports(ctx, workload, hash, vulnerabilityReports)
 	if err != nil {
 		return fmt.Errorf("writing vulnerability reports: %w", err)
 	}

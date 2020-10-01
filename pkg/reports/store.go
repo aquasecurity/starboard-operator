@@ -6,6 +6,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/aquasecurity/starboard-operator/pkg/etc"
+	"k8s.io/apimachinery/pkg/api/errors"
+	ctrl "sigs.k8s.io/controller-runtime"
+
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
@@ -24,10 +28,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+var (
+	log = ctrl.Log.WithName("store")
+)
+
 type StoreInterface interface {
-	Write(ctx context.Context, workload kube.Object, reports vulnerabilities.WorkloadVulnerabilities) error
-	Read(ctx context.Context, workload kube.Object) (vulnerabilities.WorkloadVulnerabilities, error)
-	HasVulnerabilityReports(ctx context.Context, owner kube.Object, containerImages kube.ContainerImages) (bool, error)
+	SaveVulnerabilityReports(ctx context.Context, owner kube.Object, hash string, reports vulnerabilities.WorkloadVulnerabilities) error
+	GetVulnerabilityReportsByOwnerAndHash(ctx context.Context, owner kube.Object, hash string) (vulnerabilities.WorkloadVulnerabilities, error)
+	HasVulnerabilityReports(ctx context.Context, owner kube.Object, hash string, containerImages kube.ContainerImages) (bool, error)
 }
 
 type Store struct {
@@ -42,7 +50,7 @@ func NewStore(client client.Client, scheme *runtime.Scheme) *Store {
 	}
 }
 
-func (s *Store) Write(ctx context.Context, workload kube.Object, reports vulnerabilities.WorkloadVulnerabilities) error {
+func (s *Store) SaveVulnerabilityReports(ctx context.Context, workload kube.Object, hash string, reports vulnerabilities.WorkloadVulnerabilities) error {
 	owner, err := s.getRuntimeObjectFor(ctx, workload)
 	if err != nil {
 		return err
@@ -52,39 +60,58 @@ func (s *Store) Write(ctx context.Context, workload kube.Object, reports vulnera
 		reportName := fmt.Sprintf("%s-%s-%s", strings.ToLower(string(workload.Kind)),
 			workload.Name, containerName)
 
-		vulnerabilityReport := &starboardv1alpha1.VulnerabilityReport{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      reportName,
-				Namespace: workload.Namespace,
-				Labels: labels.Set{
-					kube.LabelResourceKind:      string(workload.Kind),
-					kube.LabelResourceName:      workload.Name,
-					kube.LabelResourceNamespace: workload.Namespace,
-					kube.LabelContainerName:     containerName,
+		vulnerabilityReport := &starboardv1alpha1.VulnerabilityReport{}
+
+		err := s.client.Get(ctx, types.NamespacedName{Name: reportName, Namespace: workload.Namespace}, vulnerabilityReport)
+		if errors.IsNotFound(err) {
+			vulnerabilityReport = &starboardv1alpha1.VulnerabilityReport{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      reportName,
+					Namespace: workload.Namespace,
+					Labels: labels.Set{
+						kube.LabelResourceKind:      string(workload.Kind),
+						kube.LabelResourceName:      workload.Name,
+						kube.LabelResourceNamespace: workload.Namespace,
+						kube.LabelContainerName:     containerName,
+						etc.LabelPodSpecHash:        hash,
+					},
 				},
-			},
-			Report: report,
-		}
-		err = controllerutil.SetOwnerReference(owner, vulnerabilityReport, s.scheme)
-		if err != nil {
-			return err
+				Report: report,
+			}
+			err = controllerutil.SetOwnerReference(owner, vulnerabilityReport, s.scheme)
+			if err != nil {
+				return err
+			}
+			log.Info("Creating VulnerabilityReport",
+				"report", fmt.Sprintf("%s/%s", workload.Namespace, reportName),
+				"hash", hash)
+			err := s.client.Create(ctx, vulnerabilityReport)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 
-		err := s.client.Create(ctx, vulnerabilityReport)
-		if err != nil {
-			return err
-		}
+		// Do not modify the object that might be cached.
+		cloned := vulnerabilityReport.DeepCopy()
+		cloned.Labels[etc.LabelPodSpecHash] = hash
+		cloned.Report = report
+		log.Info("Updating VulnerabilityReport",
+			"report", fmt.Sprintf("%s/%s", workload.Namespace, reportName),
+			"hash", hash)
+		return s.client.Update(ctx, cloned)
 	}
 	return nil
 }
 
-func (s *Store) Read(ctx context.Context, workload kube.Object) (vulnerabilities.WorkloadVulnerabilities, error) {
+func (s *Store) GetVulnerabilityReportsByOwnerAndHash(ctx context.Context, workload kube.Object, hash string) (vulnerabilities.WorkloadVulnerabilities, error) {
 	vulnerabilityList := &starboardv1alpha1.VulnerabilityReportList{}
 
 	err := s.client.List(ctx, vulnerabilityList, client.MatchingLabels{
 		kube.LabelResourceKind:      string(workload.Kind),
 		kube.LabelResourceNamespace: workload.Namespace,
 		kube.LabelResourceName:      workload.Name,
+		etc.LabelPodSpecHash:        hash,
 	}, client.InNamespace(workload.Namespace))
 	if err != nil {
 		return nil, err
@@ -128,8 +155,8 @@ func (s *Store) getRuntimeObjectFor(ctx context.Context, workload kube.Object) (
 	return obj.(metav1.Object), nil
 }
 
-func (s *Store) HasVulnerabilityReports(ctx context.Context, owner kube.Object, containerImages kube.ContainerImages) (bool, error) {
-	vulnerabilityReports, err := s.Read(ctx, owner)
+func (s *Store) HasVulnerabilityReports(ctx context.Context, owner kube.Object, hash string, containerImages kube.ContainerImages) (bool, error) {
+	vulnerabilityReports, err := s.GetVulnerabilityReportsByOwnerAndHash(ctx, owner, hash)
 	if err != nil {
 		return false, err
 	}
