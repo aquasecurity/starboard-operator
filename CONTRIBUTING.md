@@ -57,13 +57,13 @@ the operator in the same namespace as supervised workloads.
    ```
    $ kubectl apply -f deploy/kubectl/01-starboard-operator.ns.yaml \
        -f deploy/kubectl/02-starboard-operator.sa.yaml \
-       -f deploy/kubectl/03-starboard-operator.role.yaml \
-       -f deploy/kubectl/04-starboard-operator.rolebinding.yaml
+       -f deploy/kubectl/03-starboard-operator.clusterrole.yaml \
+       -f deploy/kubectl/04-starboard-operator.clusterrolebinding.yaml
    ```
 
    This will create the `starboard-operator` Namespace, and the `starboard-operator` ServiceAccount. Beyond that,
-   it will create the `starboard-operator` Role and bind it to the `starboard-operator` ServiceAccount in the
-   `starboard-operator` Namespace via the `starboard-operator` RoleBinding.
+   it will create the `starboard-operator` ClusterRole and bind it to the `starboard-operator` ServiceAccount in the
+   `starboard-operator` Namespace via the `starboard-operator` ClusterRoleBinding.
 
 ### In cluster
 
