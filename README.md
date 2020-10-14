@@ -1,3 +1,7 @@
+# **📢 THIS CODE IS MOVING!! 📢**
+
+The Starboard Operator has moved to the [main Starboard repository][starboard], and we're about to archive this repo. 
+
 # starboard-operator
 
 [![GitHub Release][release-img]][release]
